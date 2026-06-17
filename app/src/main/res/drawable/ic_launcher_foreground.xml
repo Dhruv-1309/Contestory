@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer Green Clock Ring -->
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M54,40A14,14 0,1 1,53.9,40Z" />
+
+    <!-- Inner White Clock Ring -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:pathData="M54,43A11,11 0,1 1,53.9,43Z" />
+
+    <!-- Clock Ticks (12, 6, 3, 9) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,43L54,46" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,65L54,62" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M65,54L62,54" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M43,54L46,54" />
+
+    <!-- Clock Hands -->
+    <!-- Hour Hand (pointing to 10) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M54,54L49,49" />
+    <!-- Minute Hand (pointing to 12) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M54,54L54,47" />
+
+    <!-- Clock Hub Dot -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M54,52.5A1.5,1.5 0,1 1,53.9,52.5Z" />
+
+    <!-- Left Bracket { -->
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M34,46.5 c-1.5,0 -2.5,1.2 -2.5,2.5 v2.5 c0,1.5 -1.2,2.5 -2.5,2.5 c1.5,0 2.5,1.2 2.5,2.5 v2.5 c0,1.5 1.5,2.5 2.5,2.5" />
+
+    <!-- Right Bracket } -->
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M74,46.5 c1.5,0 2.5,1.2 2.5,2.5 v2.5 c0,1.5 1.2,2.5 2.5,2.5 c-1.5,0 -2.5,1.2 -2.5,2.5 v2.5 c0,1.5 -1.5,2.5 -2.5,2.5" />
+
+    <!-- Three Status Dots at the Bottom -->
+    <!-- Red Dot -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M48,73A1.5,1.5 0,1 1,47.9,73Z" />
+    <!-- Orange Dot -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M54,73A1.5,1.5 0,1 1,53.9,73Z" />
+    <!-- Green Dot -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M60,73A1.5,1.5 0,1 1,59.9,73Z" />
+
+</vector>

@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">CodeCountdown</string>
+    <string name="settings">Settings</string>
+    <string name="save">Save</string>
+    <string name="open_contest">Open</string>
+    <string name="live_label">LIVE</string>
+    <string name="live_now_section">LIVE NOW</string>
+    <string name="upcoming_today_section">UPCOMING TODAY</string>
+    <string name="no_contests_scheduled">No contests scheduled</string>
+    <string name="api_configuration">Clist.by Credentials</string>
+    <string name="clist_username_hint">Username</string>
+    <string name="clist_api_key_hint">API Key</string>
+    <string name="save_settings">Save Settings</string>
+    <string name="platforms_section">Platforms</string>
+    <string name="about_title">ABOUT</string>
+    <string name="version_info">Version 1.0.0</string>
+    <string name="dev_by">Designed &amp; developed by</string>
+    <string name="dev_name_dhruv">Dhruv B</string>
+    <string name="copyright">© 2026 Dhruv B. All rights reserved.</string>
+
+    <!-- OTA Update strings -->
+    <string name="update_section_title">APP UPDATES</string>
+    <string name="current_version_label">Current Version</string>
+    <string name="last_checked_label">Last Checked</string>
+    <string name="update_channel_label">Update Channel</string>
+    <string name="channel_stable">Stable</string>
+    <string name="channel_beta">Beta</string>
+    <string name="check_for_updates">Check for Updates</string>
+</resources>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark Mode Color Palette -->
+    <color name="bg_primary">#09090B</color>
+    <color name="bg_card">#13131A</color>
+    <color name="bg_input">#0F0F18</color>
+    <color name="bg_countdown">#1C1C26</color>
+
+    <color name="accent_purple">#817AF2</color>
+    <color name="accent_purple_light">#A5A0F7</color>
+    <color name="accent_purple_muted">#201E3D</color>
+
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#A1A1AA</color>
+    <color name="text_muted">#71717A</color>
+
+    <color name="border">#22222E</color>
+    <color name="live_green">#10B981</color>
+    <color name="live_green_bg">#132D26</color>
+
+    <color name="text_hint">#52525B</color>
+
+    <!-- About Card Specifics -->
+    <color name="about_label">#A5A0F7</color>
+    <color name="dev_label">#888888</color>
+    <color name="dev_name">#C4C1F9</color>
+    <color name="copyright_text">#555555</color>
+
+    <!-- Platform colors for badges - Dark Mode Deep Backgrounds -->
+    <color name="platform_codeforces_bg">#232338</color>
+    <color name="platform_leetcode_bg">#2D2D1A</color>
+    <color name="platform_atcoder_bg">#1A2638</color>
+    <color name="platform_codechef_bg">#2D1F1A</color>
+
+    <!-- Platform specific text colors for Dark Mode -->
+    <color name="platform_codeforces_text">#817AF2</color>
+    <color name="platform_leetcode_text">#F59E0B</color>
+    <color name="platform_atcoder_text">#00AEFF</color>
+    <color name="platform_codechef_text">#FF7A5C</color>
+
+    <!-- Aliases for system -->
+    <color name="primary">@color/accent_purple</color>
+    <color name="accent">@color/accent_purple_light</color>
+</resources>

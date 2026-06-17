@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Reduce the vertical gap between the navigation icon/active-indicator and the text label -->
+    <dimen name="mtrl_navigation_bar_item_default_margin" tools:override="true">4dp</dimen>
+</resources>

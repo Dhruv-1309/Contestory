@@ -1,0 +1,20 @@
+# Built outputs — never commit raw APKs or SHA files from the build directory
+*.apk
+*.aab
+sha256.txt
+
+# Android Gradle build outputs
+build/
+.gradle/
+local.properties
+*.iml
+
+# Android Studio
+.idea/
+*.DS_Store
+
+# Kotlin incremental
+.kotlin/
+
+# Capture files
+captures/

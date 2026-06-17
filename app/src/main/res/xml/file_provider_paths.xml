@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    FileProvider paths configuration.
+
+    "external-files-path" maps to Context.getExternalFilesDir() which is
+    app-private on external storage — no WRITE_EXTERNAL_STORAGE permission needed.
+
+    The 'path' must match the sub-directory used in ApkDownloader.getApkFile():
+      context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+-->
+<paths>
+    <external-files-path
+        name="downloaded_apks"
+        path="Download/" />
+</paths>
