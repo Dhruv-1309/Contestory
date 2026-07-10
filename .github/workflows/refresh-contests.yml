@@ -20,12 +20,12 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    env:
-      CLIST_USERNAME: ${{ secrets.CLIST_USERNAME }}
-      CLIST_API_KEY: ${{ secrets.CLIST_API_KEY }}
     steps:
       - name: Validate configuration
         shell: bash
+        env:
+          CLIST_USERNAME: ${{ secrets.CLIST_USERNAME }}
+          CLIST_API_KEY: ${{ secrets.CLIST_API_KEY }}
         run: |
           if [[ -z "$CLIST_USERNAME" || -z "$CLIST_API_KEY" ]]; then
             echo "CLIST_USERNAME and CLIST_API_KEY repository secrets are required."
@@ -34,6 +34,9 @@ jobs:
 
       - name: Fetch and sanitize contests
         shell: bash
+        env:
+          CLIST_USERNAME: ${{ secrets.CLIST_USERNAME }}
+          CLIST_API_KEY: ${{ secrets.CLIST_API_KEY }}
         run: |
           mkdir -p public
           curl --fail --silent --show-error --retry 3 \
