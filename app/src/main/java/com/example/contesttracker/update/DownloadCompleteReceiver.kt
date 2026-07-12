@@ -64,17 +64,17 @@ class DownloadCompleteReceiver : BroadcastReceiver() {
             return
         }
 
-        if (expectedSha256.isNotBlank()) {
-            val valid = SecurityVerifier.verify(apkFile, expectedSha256)
-            if (!valid) {
-                SecurityVerifier.deleteCorruptFile(apkFile)
-                Toast.makeText(
-                    context,
-                    "⚠️ Security check failed: APK integrity mismatch. Download aborted.",
-                    Toast.LENGTH_LONG
-                ).show()
-                return
-            }
+        // SHA-256 verification is mandatory — SecurityVerifier fails closed if the
+        // hash is blank, so this guard covers both missing and tampered-hash cases.
+        val valid = SecurityVerifier.verify(apkFile, expectedSha256)
+        if (!valid) {
+            SecurityVerifier.deleteCorruptFile(apkFile)
+            Toast.makeText(
+                context,
+                "⚠️ Security check failed: APK integrity mismatch. Download aborted.",
+                Toast.LENGTH_LONG
+            ).show()
+            return
         }
 
         // ----------------------------------------------------------------

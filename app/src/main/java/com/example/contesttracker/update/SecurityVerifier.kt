@@ -19,13 +19,14 @@ object SecurityVerifier {
      * Computes the SHA-256 of [apkFile] and compares it to [expectedHash]
      * (a 64-character lowercase hex string).
      *
-     * - If [expectedHash] is blank, verification is skipped with a warning and true is returned.
-     * - Returns true if the file is valid, false otherwise.
+     * - If [expectedHash] is blank, verification **fails** (returns false).
+     *   A missing hash is treated as a security failure, not a skip.
+     * - Returns true only when the computed hash matches the expected hash exactly.
      */
     fun verify(apkFile: File, expectedHash: String): Boolean {
         if (expectedHash.isBlank()) {
-            Log.w(TAG, "No expected hash supplied – skipping SHA-256 verification")
-            return true
+            Log.e(TAG, "SHA-256 verification failed: no expected hash supplied. Rejecting APK.")
+            return false
         }
 
         return try {

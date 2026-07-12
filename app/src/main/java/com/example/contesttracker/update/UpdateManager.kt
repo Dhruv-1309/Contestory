@@ -144,8 +144,15 @@ object UpdateManager {
 
     /**
      * Fetches the appropriate release from GitHub, finds the APK asset and
-     * (optionally) the SHA-256 sidecar, then returns all three.
-     * Returns null if there is no release or no APK asset found.
+     * the required SHA-256 sidecar, then returns all three.
+     *
+     * Returns null if:
+     * - No release is found.
+     * - The release has no APK asset.
+     * - The SHA-256 sidecar asset is missing from the release.
+     * - The fetched hash is not a valid 64-character hex string.
+     *
+     * A release without a verifiable hash is treated as uninstallable.
      */
     private suspend fun resolveUpdate(
         channel: String
@@ -176,14 +183,32 @@ object UpdateManager {
             asset.name.endsWith(UpdateConfig.APK_ASSET_EXTENSION, ignoreCase = true)
         } ?: return null   // Release exists but has no APK — skip silently
 
+        // SHA-256 sidecar is mandatory. A release without one is treated as
+        // uninstallable to prevent bypassing integrity verification.
         val sha256Asset = nonNullRelease.assets.firstOrNull { asset ->
             asset.name.endsWith(UpdateConfig.SHA256_ASSET_SUFFIX, ignoreCase = true) ||
             asset.name.equals("sha256.txt", ignoreCase = true)
         }
-        val sha256 = sha256Asset?.let { fetchTextFromUrl(it.downloadUrl) } ?: ""
+        if (sha256Asset == null) {
+            Log.w(TAG, "Release ${nonNullRelease.tagName} has no SHA-256 sidecar. Skipping.")
+            return null
+        }
+
+        val sha256 = fetchTextFromUrl(sha256Asset.downloadUrl)
+        if (!isValidSha256(sha256)) {
+            Log.w(TAG, "SHA-256 sidecar for ${nonNullRelease.tagName} is malformed: '$sha256'. Skipping.")
+            return null
+        }
 
         return Triple(nonNullRelease, apkAsset, sha256)
     }
+
+    /**
+     * Returns true if [hash] is a valid lowercase 64-character hex string
+     * (the expected format for a SHA-256 digest).
+     */
+    private fun isValidSha256(hash: String): Boolean =
+        hash.length == 64 && hash.all { it.isDigit() || it in 'a'..'f' }
 
     /**
      * Reads the installed app's versionName, falling back to "1.0" on any error.
