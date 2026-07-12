@@ -396,7 +396,7 @@ class MainActivity : AppCompatActivity() {
             
             val scheduler = NotificationScheduler(this)
             if (!enableNotifications) {
-                scheduler.cancelAll(viewModel.contests.value ?: emptyList())
+                scheduler.cancelAll()
             } else {
                 // Immediately reschedule from the in-memory list, or fall back to the
                 // on-disk cache so that alarms are set even if the upcoming API call fails.
