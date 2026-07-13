@@ -13,6 +13,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Manifest-registered receiver that fires when the system DownloadManager
@@ -20,10 +24,15 @@ import java.io.File
  *
  * Flow:
  *   1. Confirm the completed download ID matches our pending APK download.
- *   2. Verify the APK with SHA-256 (if a hash was stored).
- *   3. Post a "Ready to Install" notification whose tap action launches
- *      MainActivity with the APK path — works whether the app is in the
- *      foreground or background, and on all supported API levels.
+ *   2. Extend the receiver's process lifetime with goAsync().
+ *   3. On Dispatchers.IO: verify the APK with SHA-256.
+ *   4. On success: post a "Ready to Install" notification.
+ *   5. Always call pendingResult.finish() to release the process budget.
+ *
+ * SHA-256 verification reads the entire APK file and is O(file size) in both
+ * time and I/O. Running it on the main thread would block the UI and risk an
+ * ANR. goAsync() extends the receiver's lifecycle so this work can safely
+ * run on a background dispatcher.
  */
 class DownloadCompleteReceiver : BroadcastReceiver() {
 
@@ -39,7 +48,7 @@ class DownloadCompleteReceiver : BroadcastReceiver() {
         ApkDownloader.clearDownloadState(context)
 
         // ----------------------------------------------------------------
-        // 1. Check DownloadManager status
+        // 1. Check DownloadManager status (fast Cursor query — main thread ok)
         // ----------------------------------------------------------------
         val dm     = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val cursor = dm.query(DownloadManager.Query().setFilterById(completedId))
@@ -56,35 +65,49 @@ class DownloadCompleteReceiver : BroadcastReceiver() {
         }
 
         // ----------------------------------------------------------------
-        // 2. SHA-256 verification
+        // 2. Extend the receiver's process lifetime before any blocking work.
+        //    All remaining work runs on Dispatchers.IO; pendingResult.finish()
+        //    is called in the finally block regardless of outcome.
         // ----------------------------------------------------------------
-        val apkFile = File(apkPath)
-        if (!apkFile.exists()) {
-            Toast.makeText(context, "Downloaded file not found.", Toast.LENGTH_LONG).show()
-            return
-        }
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val apkFile = File(apkPath)
 
-        // SHA-256 verification is mandatory — SecurityVerifier fails closed if the
-        // hash is blank, so this guard covers both missing and tampered-hash cases.
-        val valid = SecurityVerifier.verify(apkFile, expectedSha256)
-        if (!valid) {
-            SecurityVerifier.deleteCorruptFile(apkFile)
-            Toast.makeText(
-                context,
-                "⚠️ Security check failed: APK integrity mismatch. Download aborted.",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
+                if (!apkFile.exists()) {
+                    showToast(context, "Downloaded file not found.")
+                    return@launch
+                }
 
-        // ----------------------------------------------------------------
-        // 3. Show "Ready to Install" notification
-        // ----------------------------------------------------------------
-        showInstallNotification(context, apkPath)
+                // SHA-256 verification: reads the full APK file — must be off the main thread.
+                // SecurityVerifier fails closed on a blank hash (enforced by ISSUE-002 fix).
+                val valid = SecurityVerifier.verify(apkFile, expectedSha256)
+                if (!valid) {
+                    SecurityVerifier.deleteCorruptFile(apkFile)
+                    showToast(context, "⚠️ Security check failed: APK integrity mismatch. Download aborted.")
+                    return@launch
+                }
+
+                // Verification passed — show the install notification.
+                // showInstallNotification() only touches NotificationManager, which is
+                // thread-safe, so no context switch to Main is required here.
+                showInstallNotification(context, apkPath)
+
+            } finally {
+                // Always release the receiver's process budget.
+                // Omitting this would leak the wakelock held by goAsync().
+                pendingResult.finish()
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
 
+    /**
+     * Posts a "Ready to Install" notification.
+     * NotificationManagerCompat.notify() is thread-safe and may be called from
+     * any thread, so no dispatcher switch is needed.
+     */
     private fun showInstallNotification(context: Context, apkPath: String) {
         ensureNotificationChannel(context)
 
@@ -140,6 +163,16 @@ class DownloadCompleteReceiver : BroadcastReceiver() {
 
         NotificationManagerCompat.from(context)
             .notify(UpdateConfig.NOTIFICATION_ID_UPDATE_READY, notification)
+    }
+
+    /**
+     * Shows a Toast on the main thread. Required because Toast.makeText() must
+     * be called from a Looper thread; this receiver's coroutine runs on IO.
+     */
+    private suspend fun showToast(context: Context, message: String) {
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun ensureNotificationChannel(context: Context) {
