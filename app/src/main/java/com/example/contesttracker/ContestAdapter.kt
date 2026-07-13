@@ -83,18 +83,20 @@ class ContestAdapter(
         private val openButton: MaterialButton = itemView.findViewById(R.id.openContestButton)
 
         fun bind(contest: ContestModel) {
-            val platform = contest.platform
+            // Repository guarantees platform is non-null, but guard here as
+            // belt-and-suspenders defence against any future data path change.
+            val platform = contest.platform ?: return
             val context = itemView.context
-            
+
             platformBadgeText.text = platform.displayName
             platformLogo.imageTintList = null
             platformLogo.setImageResource(platform.logoResId)
-            
+
             val (bgColor, textColor) = when (platform) {
                 Platform.CODEFORCES -> R.color.platform_codeforces_bg to R.color.platform_codeforces_text
-                Platform.LEETCODE -> R.color.platform_leetcode_bg to R.color.platform_leetcode_text
-                Platform.ATCODER -> R.color.platform_atcoder_bg to R.color.platform_atcoder_text
-                Platform.CODECHEF -> R.color.platform_codechef_bg to R.color.platform_codechef_text
+                Platform.LEETCODE   -> R.color.platform_leetcode_bg to R.color.platform_leetcode_text
+                Platform.ATCODER    -> R.color.platform_atcoder_bg to R.color.platform_atcoder_text
+                Platform.CODECHEF   -> R.color.platform_codechef_bg to R.color.platform_codechef_text
             }
             
             val resolvedTextColor = ContextCompat.getColor(context, textColor)

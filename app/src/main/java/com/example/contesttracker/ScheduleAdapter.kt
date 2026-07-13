@@ -119,10 +119,12 @@ class ScheduleAdapter(
         private val bellButton: ImageButton = view.findViewById(R.id.bellButton)
 
         fun bind(contest: ContestModel) {
-            name.text     = contest.name
-            platform.text = contest.platform.displayName
+            name.text = contest.name
+            // Repository filters unknowns; guard here for the cached-data path.
+            val p = contest.platform ?: return
+            platform.text = p.displayName
             logo.imageTintList = null
-            logo.setImageResource(contest.platform.logoResId)
+            logo.setImageResource(p.logoResId)
 
             val startMillis = ContestTimeUtils.startTimeMillis(contest.start) ?: 0
             time.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(startMillis))

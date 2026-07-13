@@ -23,7 +23,16 @@ data class ContestModel(
     @SerializedName("href")
     val url: String?
 ) {
-    val platform: Platform
+    /**
+     * Returns the matching [Platform], or null if [resourceId] is not
+     * one of the four supported platforms.
+     *
+     * Callers that receive null should discard the contest rather than
+     * display it with incorrect metadata. Filtering happens at the
+     * repository layer (see [ContestRepository]) so adapters and the
+     * scheduler never see an unclassified contest.
+     */
+    val platform: Platform?
         get() = Platform.fromResourceId(resourceId)
 }
 
@@ -39,9 +48,16 @@ enum class Platform(
     ATCODER(93, "AtCoder", R.drawable.ic_atcoder, R.color.accent_purple);
 
     companion object {
-        fun fromResourceId(id: Int): Platform {
-            return entries.firstOrNull { it.resourceId == id }
-                ?: CODEFORCES
-        }
+        /**
+         * Returns the [Platform] matching [id], or **null** if [id] is not
+         * one of the four supported resource IDs.
+         *
+         * A null return means the contest's platform is unknown — it must be
+         * excluded from display, scheduling, and notification preferences.
+         * Defaulting to a real platform would produce wrong logos, names,
+         * and incorrect notification-preference lookups.
+         */
+        fun fromResourceId(id: Int): Platform? =
+            entries.firstOrNull { it.resourceId == id }
     }
 }
