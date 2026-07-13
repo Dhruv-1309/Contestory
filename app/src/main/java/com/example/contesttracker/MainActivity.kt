@@ -204,10 +204,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupAdapters() {
-        liveAdapter = ContestAdapter { url -> openContest(url) }
+        liveAdapter     = ContestAdapter { url -> openContest(url) }
         upcomingAdapter = ContestAdapter { url -> openContest(url) }
-        scheduleAdapter = ScheduleAdapter()
-        remindersAdapter = ScheduleAdapter()
+        // Schedule tab: read-only calendar view, no bell toggles
+        scheduleAdapter  = ScheduleAdapter(showReminderToggle = false)
+        // Reminders tab: per-contest bell toggle enabled
+        remindersAdapter = ScheduleAdapter(showReminderToggle = true)
     }
 
     private fun setupScheduleUI() {
@@ -397,6 +399,9 @@ class MainActivity : AppCompatActivity() {
             val scheduler = NotificationScheduler(this)
             if (!enableNotifications) {
                 scheduler.cancelAll()
+                // Also clear per-contest reminder prefs so re-enabling restores
+                // the default opt-in state (all contests reminded).
+                ReminderPreferences.clearAll(this)
             } else {
                 // Immediately reschedule from the in-memory list, or fall back to the
                 // on-disk cache so that alarms are set even if the upcoming API call fails.
