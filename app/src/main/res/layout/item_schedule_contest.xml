@@ -17,7 +17,7 @@
         android:layout_height="wrap_content"
         android:padding="16dp">
 
-        <!-- Circular Platform Logo Container instead of Colored Vertical strip -->
+        <!-- Circular Platform Logo -->
         <ImageView
             android:id="@+id/platformLogo"
             android:layout_width="32dp"
@@ -30,11 +30,13 @@
             app:layout_constraintTop_toTopOf="parent"
             tools:src="@drawable/ic_leetcode" />
 
+        <!-- Contest name (bounded so it doesn't push the time/bell off screen) -->
         <TextView
             android:id="@+id/contestName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="14dp"
+            android:layout_marginEnd="8dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/text_primary"
@@ -45,19 +47,7 @@
             app:layout_constraintTop_toTopOf="parent"
             tools:text="Codeforces Round 900" />
 
-        <TextView
-            android:id="@+id/contestTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/accent_purple"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:fontFamily="monospace"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="20:00" />
-
+        <!-- Platform label below name -->
         <TextView
             android:id="@+id/platformName"
             android:layout_width="wrap_content"
@@ -68,6 +58,42 @@
             app:layout_constraintStart_toStartOf="@id/contestName"
             app:layout_constraintTop_toBottomOf="@id/contestName"
             tools:text="Codeforces" />
+
+        <!-- Start time — constrained between name and bell button -->
+        <TextView
+            android:id="@+id/contestTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="@color/accent_purple"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/bellButton"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="20:00" />
+
+        <!--
+            Bell toggle button — visible only on the Reminders tab.
+            Visibility is controlled by ScheduleAdapter.showReminderToggle.
+            Uses GONE (not INVISIBLE) so it does not consume horizontal space
+            when hidden on the Schedule tab.
+        -->
+        <ImageButton
+            android:id="@+id/bellButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Toggle reminder"
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:src="@drawable/ic_bell_on"
+            tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

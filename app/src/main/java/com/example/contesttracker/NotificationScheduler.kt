@@ -64,6 +64,12 @@ class NotificationScheduler(private val context: Context) {
                 return@forEach
             }
 
+            // Per-contest opt-out: user tapped the bell icon to silence this contest.
+            if (!ReminderPreferences.isEnabled(context, contest.id)) {
+                cancelForContest(contest)
+                return@forEach
+            }
+
             // 1 Hour Before
             val oneHourBefore = startMillis - (60 * 60 * 1000)
             if (oneHourBefore > now) {
