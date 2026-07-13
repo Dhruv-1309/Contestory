@@ -28,7 +28,7 @@ class ScheduleAdapter(
     private var allContests = listOf<ContestModel>()
 
     sealed class ScheduleItem {
-        data class Header(val date: String, val isCollapsed: Boolean) : ScheduleItem()
+        data class Header(val dateKey: String, val displayText: String, val isCollapsed: Boolean) : ScheduleItem()
         data class Contest(val contest: ContestModel) : ScheduleItem()
     }
 
@@ -48,7 +48,7 @@ class ScheduleAdapter(
         groups.toSortedMap().forEach { (dateKey, contestsInGroup) ->
             val displayDate = getDisplayDate(dateKey)
             val isCollapsed = collapsedGroups.contains(dateKey)
-            items.add(ScheduleItem.Header(displayDate, isCollapsed))
+            items.add(ScheduleItem.Header(dateKey, displayDate, isCollapsed))
             if (!isCollapsed) {
                 contestsInGroup.forEach { items.add(ScheduleItem.Contest(it)) }
             }
@@ -102,10 +102,10 @@ class ScheduleAdapter(
         private val title: TextView = view.findViewById(R.id.groupTitle)
 
         fun bind(header: ScheduleItem.Header) {
-            title.text = header.date
+            title.text = header.displayText
             itemView.setOnClickListener {
-                if (collapsedGroups.contains(header.date)) collapsedGroups.remove(header.date)
-                else collapsedGroups.add(header.date)
+                if (collapsedGroups.contains(header.dateKey)) collapsedGroups.remove(header.dateKey)
+                else collapsedGroups.add(header.dateKey)
                 updateItems()
             }
         }
