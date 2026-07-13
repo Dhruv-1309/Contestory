@@ -165,7 +165,23 @@ class ScheduleAdapter(
             updateBellIcon(enabled)
 
             bellButton.setOnClickListener {
+                val context = itemView.context
                 val newEnabled = !ReminderPreferences.isEnabled(context, contest.id)
+                
+                if (newEnabled) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        val alarmManager = context.getSystemService(android.app.AlarmManager::class.java)
+                        if (alarmManager != null && !alarmManager.canScheduleExactAlarms()) {
+                            val intent = android.content.Intent(
+                                android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                android.net.Uri.parse("package:${context.packageName}")
+                            )
+                            context.startActivity(intent)
+                            return@setOnClickListener // Let the user grant permission before saving
+                        }
+                    }
+                }
+
                 ReminderPreferences.setEnabled(context, contest.id, newEnabled)
                 updateBellIcon(newEnabled)
 

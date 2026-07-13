@@ -173,23 +173,6 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }
-
-        // ── SCHEDULE_EXACT_ALARM (Android 12+) ───────────────────────────────
-        // This special permission is NOT auto-granted even when declared in the
-        // manifest. Without it the AlarmManager silently falls back to inexact
-        // alarms which Android may skip or heavily defer during Doze mode.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val alarmManager = getSystemService(AlarmManager::class.java)
-            if (!alarmManager.canScheduleExactAlarms()) {
-                // Deep-link to the system "Alarms & Reminders" settings page for
-                // this app so the user can grant the permission with one tap.
-                val intent = Intent(
-                    Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                    Uri.parse("package:$packageName")
-                )
-                startActivity(intent)
-            }
-        }
     }
 
     private fun setCurrentDate() {
@@ -432,6 +415,16 @@ class MainActivity : AppCompatActivity() {
                 // the default opt-in state (all contests reminded).
                 ReminderPreferences.clearAll(this)
             } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val alarmManager = getSystemService(AlarmManager::class.java)
+                    if (!alarmManager.canScheduleExactAlarms()) {
+                        startActivity(Intent(
+                            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            Uri.parse("package:$packageName")
+                        ))
+                    }
+                }
+
                 // Immediately reschedule from the in-memory list, or fall back to the
                 // on-disk cache so that alarms are set even if the upcoming API call fails.
                 val contestsToSchedule = viewModel.contests.value
