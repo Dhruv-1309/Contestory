@@ -56,6 +56,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var homeEmptySubtitle: TextView
     private lateinit var liveNowLabel: View
     private lateinit var upcomingLabel: View
+    private lateinit var staleBanner: TextView
     
     private val selectedPlatforms = Platform.entries.toMutableSet()
     private var selectedDayOffset = 0
@@ -199,8 +200,9 @@ class MainActivity : AppCompatActivity() {
         homeEmptyState   = homeLayout.findViewById(R.id.homeEmptyState)
         homeEmptyTitle   = homeLayout.findViewById(R.id.homeEmptyTitle)
         homeEmptySubtitle = homeLayout.findViewById(R.id.homeEmptySubtitle)
-        liveNowLabel     = homeLayout.findViewById(R.id.liveNowLabel)
-        upcomingLabel    = homeLayout.findViewById(R.id.upcomingLabel)
+        liveNowLabel      = homeLayout.findViewById(R.id.liveNowLabel)
+        upcomingLabel     = homeLayout.findViewById(R.id.upcomingLabel)
+        staleBanner       = homeLayout.findViewById(R.id.staleBanner)
     }
 
     private fun setupAdapters() {
@@ -479,10 +481,23 @@ class MainActivity : AppCompatActivity() {
             applyFilters(contests)
         }
         viewModel.isLoading.observe(this) { progressBar.isVisible = it }
-        
+
         viewModel.errorMessage.observe(this) { error ->
             if (!error.isNullOrBlank()) {
                 Toast.makeText(this, error, Toast.LENGTH_LONG).show()
+            }
+        }
+
+        // Show a tappable stale-data banner whenever cached data is displayed
+        // instead of live data, so the user is never silently shown stale content.
+        viewModel.isUsingCachedData.observe(this) { isStale ->
+            staleBanner.isVisible = isStale
+            if (isStale) {
+                staleBanner.setOnClickListener {
+                    viewModel.loadContests()
+                }
+            } else {
+                staleBanner.setOnClickListener(null)
             }
         }
     }

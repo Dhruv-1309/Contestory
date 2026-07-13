@@ -98,6 +98,23 @@
                 android:orientation="vertical"
                 android:paddingBottom="24dp">
 
+                <!-- Stale data banner — shown when the UI is displaying cached data
+                     after a network failure. GONE by default; visibility controlled
+                     by ContestViewModel.isUsingCachedData. Tapping triggers a refresh. -->
+                <TextView
+                    android:id="@+id/staleBanner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@color/accent_purple_muted"
+                    android:gravity="center"
+                    android:paddingVertical="10dp"
+                    android:paddingHorizontal="16dp"
+                    android:text="@string/stale_data_banner"
+                    android:textColor="@color/accent_purple"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
                 <!-- Day Selector Chips -->
                 <HorizontalScrollView
                     android:layout_width="match_parent"

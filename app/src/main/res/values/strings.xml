@@ -29,4 +29,7 @@
     <string name="home_empty_no_contests_subtitle">There are no contests on this day for the selected platforms. Try selecting a different day or enabling more platforms.</string>
     <string name="home_empty_all_done_title">You\'re all caught up!</string>
     <string name="home_empty_all_done_subtitle">All contests for this day have ended. Check back tomorrow or switch to a future day.</string>
+
+    <!-- Shown when displaying cached data after a network failure -->
+    <string name="stale_data_banner">⚠️ Offline — showing cached data. Tap to refresh.</string>
 </resources>
