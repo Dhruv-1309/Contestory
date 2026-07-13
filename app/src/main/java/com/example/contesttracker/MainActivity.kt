@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity() {
 
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Something went wrong during startup. Please restart the app.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.error_startup), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -619,7 +619,7 @@ class MainActivity : AppCompatActivity() {
             val normalizedUrl = if (url.startsWith("http")) url else "https://$url"
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(normalizedUrl)))
         }.onFailure {
-            Toast.makeText(this, "Cannot open browser", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_browser), Toast.LENGTH_SHORT).show()
         }
     }
 }

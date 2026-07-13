@@ -130,9 +130,10 @@ class ContestAdapter(
             liveBadge.isVisible = now in startMillis..endMillis
             
             val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
-            val timeLabel = if (now < startMillis) "Starts " else "Ends at "
             val targetTime = if (now < startMillis) startMillis else endMillis
-            timeRangeText.text = "$timeLabel${sdf.format(Date(targetTime))}"
+            val formattedTime = sdf.format(Date(targetTime))
+            val timeLabelRes = if (now < startMillis) R.string.starts_at else R.string.ends_at
+            timeRangeText.text = context.getString(timeLabelRes, formattedTime)
             
             updateCountdown(contest)
 

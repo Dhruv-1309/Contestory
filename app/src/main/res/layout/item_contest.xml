@@ -40,6 +40,7 @@
                     android:id="@+id/platformLogo"
                     android:layout_width="14dp"
                     android:layout_height="14dp"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/ic_code" />
 
                 <TextView
@@ -82,7 +83,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
-                    android:text="LIVE"
+                    android:text="@string/live_label"
                     android:textColor="@color/live_green"
                     android:textSize="11sp"
                     android:textStyle="bold" />
@@ -167,6 +168,7 @@
                     android:id="@+id/timerIcon"
                     android:layout_width="14dp"
                     android:layout_height="14dp"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/ic_timer"
                     app:tint="@color/accent_purple"
                     android:layout_marginEnd="6dp"/>
@@ -189,7 +191,7 @@
                     android:textStyle="bold"
                     android:layout_marginStart="2dp"
                     android:layout_marginEnd="8dp"
-                    android:text="H" />
+                    android:text="@string/timer_hours" />
 
                 <TextView
                     android:id="@+id/minutesBox"
@@ -209,7 +211,7 @@
                     android:textStyle="bold"
                     android:layout_marginStart="2dp"
                     android:layout_marginEnd="8dp"
-                    android:text="M" />
+                    android:text="@string/timer_minutes" />
 
                 <TextView
                     android:id="@+id/secondsBox"
@@ -228,7 +230,7 @@
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:layout_marginStart="2dp"
-                    android:text="S" />
+                    android:text="@string/timer_seconds" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
@@ -240,7 +242,7 @@
                 android:insetBottom="0dp"
                 android:minHeight="0dp"
                 android:paddingHorizontal="16dp"
-                android:text="Register"
+                android:text="@string/action_register"
                 android:textAllCaps="false"
                 android:textColor="@color/accent_purple"
                 android:textSize="14sp"

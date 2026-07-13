@@ -32,4 +32,27 @@
 
     <!-- Shown when displaying cached data after a network failure -->
     <string name="stale_data_banner">⚠️ Offline — showing cached data. Tap to refresh.</string>
+
+    <!-- Dynamic strings for adapters -->
+    <string name="today">TODAY</string>
+    <string name="tomorrow">TOMORROW</string>
+    <string name="starts_at">Starts %1$s</string>
+    <string name="ends_at">Ends at %1$s</string>
+    
+    <!-- Timer labels -->
+    <string name="timer_hours">H</string>
+    <string name="timer_minutes">M</string>
+    <string name="timer_seconds">S</string>
+    <string name="action_register">Register</string>
+
+    <!-- Accessibility descriptions -->
+    <string name="desc_notifications">Notifications</string>
+    <string name="desc_toggle_reminder">Toggle reminder</string>
+    <string name="state_collapsed">Collapsed</string>
+    <string name="state_expanded">Expanded</string>
+    <string name="error_startup">Something went wrong during startup. Please restart the app.</string>
+    <string name="error_browser">Cannot open browser</string>
+
+    <string name="reminders_empty_title">No active reminders</string>
+    <string name="reminders_empty_subtitle">Enable notifications in Settings to track contests.</string>
 </resources>

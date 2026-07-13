@@ -29,7 +29,7 @@ class ScheduleAdapter(
     private var allContests = listOf<ContestModel>()
 
     sealed class ScheduleItem {
-        data class Header(val dateKey: String, val displayText: String, val isCollapsed: Boolean) : ScheduleItem()
+        data class Header(val dateKey: String, val isCollapsed: Boolean) : ScheduleItem()
         data class Contest(val contest: ContestModel) : ScheduleItem()
     }
 
@@ -47,9 +47,16 @@ class ScheduleAdapter(
         }
 
         groups.toSortedMap().forEach { (dateKey, contestsInGroup) ->
-            val displayDate = getDisplayDate(dateKey)
+            // Use the first item's context for resources if available, though any view context would work.
+            // A more robust way is to pass context to the adapter, but this is simple enough.
+            val firstContest = contestsInGroup.firstOrNull()
+            // We can resolve getDisplayDate dynamically in bind, but the adapter builds items first. 
+            // We'll pass the context from the ViewHolder later, or just store a marker enum. 
+            // Better to change getDisplayDate to be called inside HeaderViewHolder.bind!
+            // Wait, items.add(ScheduleItem.Header) takes displayText.
+            // Let's modify ScheduleAdapter to just hold the dateKey and let the ViewHolder resolve the display text.
             val isCollapsed = collapsedGroups.contains(dateKey)
-            items.add(ScheduleItem.Header(dateKey, displayDate, isCollapsed))
+            items.add(ScheduleItem.Header(dateKey, isCollapsed))
             if (!isCollapsed) {
                 contestsInGroup.forEach { items.add(ScheduleItem.Contest(it)) }
             }
@@ -57,12 +64,12 @@ class ScheduleAdapter(
         notifyDataSetChanged()
     }
 
-    private fun getDisplayDate(dateKey: String): String {
+    private fun getDisplayDate(context: android.content.Context, dateKey: String): String {
         val today    = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val tomorrow = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(System.currentTimeMillis() + 86_400_000))
         return when (dateKey) {
-            today    -> "TODAY"
-            tomorrow -> "TOMORROW"
+            today    -> context.getString(R.string.today)
+            tomorrow -> context.getString(R.string.tomorrow)
             else     -> dateKey.uppercase()
         }
     }
@@ -103,7 +110,17 @@ class ScheduleAdapter(
         private val title: TextView = view.findViewById(R.id.groupTitle)
 
         fun bind(header: ScheduleItem.Header) {
-            title.text = header.displayText
+            val context = itemView.context
+            val displayText = getDisplayDate(context, header.dateKey)
+            title.text = displayText
+            
+            // Expose collapse state for accessibility
+            itemView.contentDescription = displayText
+            androidx.core.view.ViewCompat.setStateDescription(
+                itemView,
+                context.getString(if (header.isCollapsed) R.string.state_collapsed else R.string.state_expanded)
+            )
+
             itemView.setOnClickListener {
                 if (collapsedGroups.contains(header.dateKey)) collapsedGroups.remove(header.dateKey)
                 else collapsedGroups.add(header.dateKey)
