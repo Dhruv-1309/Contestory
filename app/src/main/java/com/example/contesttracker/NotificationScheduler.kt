@@ -59,7 +59,11 @@ class NotificationScheduler(private val context: Context) {
 
             if (startMillis <= now) return@forEach
 
-            if (!prefs.getBoolean("platform_${contest.platform.name}", true)) {
+            // getCachedContests() deserialises from disk; the repository filter does not
+            // re-run on the cached path, so guard here to be safe.
+            val platform = contest.platform ?: return@forEach
+
+            if (!prefs.getBoolean("platform_${platform.name}", true)) {
                 cancelForContest(contest)
                 return@forEach
             }
@@ -106,7 +110,7 @@ class NotificationScheduler(private val context: Context) {
         val notificationId = notificationId(contest, typeOffset)
         val intent = Intent(context, NotificationReceiver::class.java).apply {
             putExtra("contest_name", contest.name)
-            putExtra("platform", contest.platform.displayName)
+            putExtra("platform", contest.platform?.displayName ?: contest.name)
             putExtra("url", contest.url)
             putExtra("body", body)
             putExtra("notification_id", notificationId)

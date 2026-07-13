@@ -508,7 +508,7 @@ class MainActivity : AppCompatActivity() {
         val sAdapter = scheduleAdapter ?: return
         val rAdapter = remindersAdapter ?: return
 
-        val filteredByPlatform = contests?.filter { it.platform in selectedPlatforms } ?: emptyList()
+        val filteredByPlatform = contests?.filter { it.platform?.let { p -> p in selectedPlatforms } == true } ?: emptyList()
         val now = System.currentTimeMillis()
 
         val targetDay = getTargetDayString(selectedDayOffset)
