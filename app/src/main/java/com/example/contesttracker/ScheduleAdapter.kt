@@ -20,7 +20,8 @@ import java.util.*
  *   behaves exactly as before this feature was added.
  */
 class ScheduleAdapter(
-    private val showReminderToggle: Boolean = false
+    private val showReminderToggle: Boolean = false,
+    private val onContestClick: ((String) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<ScheduleItem>()
@@ -134,6 +135,10 @@ class ScheduleAdapter(
                 bindBellState(contest)
             } else {
                 bellButton.isVisible = false
+            }
+
+            itemView.setOnClickListener {
+                contest.url?.let { url -> onContestClick?.invoke(url) }
             }
         }
 

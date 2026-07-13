@@ -196,22 +196,26 @@ class MainActivity : AppCompatActivity() {
         emptyState = scheduleLayout.findViewById(R.id.scheduleEmptyState)
         remindersEmptyState = remindersLayout.findViewById(R.id.remindersEmptyState)
 
-        // Home empty state views
         homeEmptyState   = homeLayout.findViewById(R.id.homeEmptyState)
         homeEmptyTitle   = homeLayout.findViewById(R.id.homeEmptyTitle)
         homeEmptySubtitle = homeLayout.findViewById(R.id.homeEmptySubtitle)
         liveNowLabel      = homeLayout.findViewById(R.id.liveNowLabel)
         upcomingLabel     = homeLayout.findViewById(R.id.upcomingLabel)
         staleBanner       = homeLayout.findViewById(R.id.staleBanner)
+
+        val notificationButton: ImageButton = findViewById(R.id.notificationButton)
+        notificationButton.setOnClickListener {
+            bottomNavigation.selectedItemId = R.id.nav_reminders
+        }
     }
 
     private fun setupAdapters() {
         liveAdapter     = ContestAdapter { url -> openContest(url) }
         upcomingAdapter = ContestAdapter { url -> openContest(url) }
         // Schedule tab: read-only calendar view, no bell toggles
-        scheduleAdapter  = ScheduleAdapter(showReminderToggle = false)
+        scheduleAdapter  = ScheduleAdapter(showReminderToggle = false, onContestClick = { url -> openContest(url) })
         // Reminders tab: per-contest bell toggle enabled
-        remindersAdapter = ScheduleAdapter(showReminderToggle = true)
+        remindersAdapter = ScheduleAdapter(showReminderToggle = true, onContestClick = { url -> openContest(url) })
     }
 
     private fun setupScheduleUI() {
