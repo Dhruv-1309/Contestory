@@ -8,8 +8,8 @@ object UpdateConfig {
     const val GITHUB_OWNER = "Dhruv-1309"
     const val GITHUB_REPO = "CodeCountdown"
 
-    /** Prefix of the APK asset file name on GitHub Releases, e.g. "CodeCountdown" */
-    const val APK_ASSET_PREFIX = "CodeCountdown"
+    /** Prefix of the APK asset file name on GitHub Releases, e.g. "Contestory" */
+    const val APK_ASSET_PREFIX = "Contestory"
     const val APK_ASSET_EXTENSION = ".apk"
 
     /** Suffix for the SHA-256 sidecar file, e.g. "CodeCountdown.sha256" or "sha256.txt" */

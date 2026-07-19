@@ -34,11 +34,6 @@ object UpdateManager {
     fun checkForUpdates(activity: Activity, forceCheck: Boolean = false) {
         val prefs = UpdatePreferences(activity)
 
-        if (!forceCheck && !prefs.shouldCheckForUpdate()) {
-            Log.d(TAG, "Skipping update check (last checked: ${prefs.getFormattedLastCheckTime()})")
-            return
-        }
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val resolved = resolveUpdate(prefs.updateChannel) ?: run {
@@ -58,12 +53,7 @@ object UpdateManager {
                     return@launch
                 }
 
-                // Don't re-show a dialog for a version the user already dismissed
-                if (prefs.dismissedVersion == release.tagName) {
-                    Log.d(TAG, "User dismissed ${release.tagName} previously")
-                    return@launch
-                }
-
+                // Always show the dialog every launch if a newer version exists.
                 withContext(Dispatchers.Main) {
                     if (!activity.isFinishing && !activity.isDestroyed) {
                         UpdateDialog.show(
@@ -74,9 +64,7 @@ object UpdateManager {
                             apkDownloadUrl = apkAsset.downloadUrl,
                             apkFileName    = apkAsset.name,
                             expectedSha256 = sha256
-                        ) { dismissed ->
-                            if (dismissed) prefs.dismissedVersion = release.tagName
-                        }
+                        ) { _ -> /* no dismissed tracking */ }
                     }
                 }
             } catch (e: Exception) {
