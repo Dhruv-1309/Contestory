@@ -501,15 +501,20 @@ class MainActivity : AppCompatActivity() {
         val filteredByPlatform = contests?.filter { it.platform?.let { p -> p in selectedPlatforms } == true } ?: emptyList()
         val now = System.currentTimeMillis()
 
-        val filteredByDayAndPlatform = filteredByPlatform
+        // Restrict home tab to today's contests only
+        val todayKey = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
+        val filteredByDayAndPlatform = filteredByPlatform.filter {
+            val startMillis = ContestTimeUtils.startTimeMillis(it.start) ?: 0
+            java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date(startMillis)) == todayKey
+        }
 
-        val running = filteredByDayAndPlatform.filter { 
+        val running = filteredByDayAndPlatform.filter {
             val start = ContestTimeUtils.startTimeMillis(it.start) ?: 0
             val end = start + (it.durationSeconds * 1000)
             now in start..end
         }
-        val upcoming = filteredByDayAndPlatform.filter { 
-            (ContestTimeUtils.startTimeMillis(it.start) ?: 0) > now 
+        val upcoming = filteredByDayAndPlatform.filter {
+            (ContestTimeUtils.startTimeMillis(it.start) ?: 0) > now
         }
 
         lAdapter.submitList(running)
@@ -524,28 +529,33 @@ class MainActivity : AppCompatActivity() {
         }
 
         // ── Home empty state logic ────────────────────────────────────────────────
-        val hasVisibleContests = running.isNotEmpty() || upcoming.isNotEmpty()
+        val hasLive     = running.isNotEmpty()
+        val hasUpcoming = upcoming.isNotEmpty()
+        val hasVisibleContests = hasLive || hasUpcoming
 
-        // Show / hide the section labels and RecyclerViews
-        liveNowLabel.isVisible  = hasVisibleContests
-        upcomingLabel.isVisible = hasVisibleContests
-        lAdapter.let { homeLayout.findViewById<View>(R.id.liveRecyclerView).isVisible = hasVisibleContests }
-        uAdapter.let { homeLayout.findViewById<View>(R.id.upcomingRecyclerView).isVisible = hasVisibleContests }
+        // Live Now section — only visible when contests are actually running right now
+        liveNowLabel.isVisible = hasLive
+        homeLayout.findViewById<View>(R.id.liveRecyclerView).isVisible = hasLive
+
+        // Upcoming section — visible when there are upcoming contests today
+        upcomingLabel.isVisible = hasUpcoming
+        homeLayout.findViewById<View>(R.id.upcomingRecyclerView).isVisible = hasUpcoming
 
         if (!hasVisibleContests) {
             homeEmptyState.isVisible = true
             if (filteredByDayAndPlatform.isEmpty()) {
-                // Nothing was ever scheduled on this day for the selected platforms
+                // Nothing scheduled today for the selected platforms
                 homeEmptyTitle.text   = getString(R.string.home_empty_no_contests_title)
                 homeEmptySubtitle.text = getString(R.string.home_empty_no_contests_subtitle)
             } else {
-                // There were contests but they've all ended
+                // There were contests today but they've all ended
                 homeEmptyTitle.text   = getString(R.string.home_empty_all_done_title)
                 homeEmptySubtitle.text = getString(R.string.home_empty_all_done_subtitle)
             }
         } else {
             homeEmptyState.isVisible = false
         }
+
         // ──────────────────────────────────────────────────────────────
 
         sAdapter.submitContests(filteredByPlatform)
