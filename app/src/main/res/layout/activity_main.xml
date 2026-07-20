@@ -115,6 +115,24 @@
                     android:textStyle="bold"
                     android:visibility="gone" />
 
+                <!-- Exact alarm permission banner — shown on Android 12+ when
+                     SCHEDULE_EXACT_ALARM has not been granted. Tapping opens the
+                     system permission screen. GONE by default. -->
+                <TextView
+                    android:id="@+id/alarmPermissionBanner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#332200"
+                    android:gravity="center"
+                    android:paddingVertical="10dp"
+                    android:paddingHorizontal="16dp"
+                    android:text="⚠️ Exact alarm permission missing — notifications may be delayed. Tap to fix."
+                    android:textColor="#FFAA00"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+
 
                 <!-- Platform Selector Chips -->
                 <HorizontalScrollView

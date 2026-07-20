@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var liveNowLabel: View
     private lateinit var upcomingLabel: View
     private lateinit var staleBanner: TextView
+    private lateinit var alarmPermissionBanner: TextView
     
     private val selectedPlatforms = Platform.entries.toMutableSet()
 
@@ -195,9 +196,10 @@ class MainActivity : AppCompatActivity() {
         homeEmptyState   = homeLayout.findViewById(R.id.homeEmptyState)
         homeEmptyTitle   = homeLayout.findViewById(R.id.homeEmptyTitle)
         homeEmptySubtitle = homeLayout.findViewById(R.id.homeEmptySubtitle)
-        liveNowLabel      = homeLayout.findViewById(R.id.liveNowLabel)
-        upcomingLabel     = homeLayout.findViewById(R.id.upcomingLabel)
-        staleBanner       = homeLayout.findViewById(R.id.staleBanner)
+        liveNowLabel          = homeLayout.findViewById(R.id.liveNowLabel)
+        upcomingLabel         = homeLayout.findViewById(R.id.upcomingLabel)
+        staleBanner           = homeLayout.findViewById(R.id.staleBanner)
+        alarmPermissionBanner = homeLayout.findViewById(R.id.alarmPermissionBanner)
 
         val notificationButton: ImageButton = findViewById(R.id.notificationButton)
         notificationButton.setOnClickListener {
@@ -490,6 +492,27 @@ class MainActivity : AppCompatActivity() {
                 staleBanner.setOnClickListener(null)
             }
         }
+
+        // Show an alarm permission banner on Android 12+ when SCHEDULE_EXACT_ALARM
+        // is not granted. Without it, notification delivery can be delayed by hours.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(AlarmManager::class.java)
+            if (!alarmManager.canScheduleExactAlarms()) {
+                alarmPermissionBanner.isVisible = true
+                alarmPermissionBanner.setOnClickListener {
+                    startActivity(
+                        Intent(
+                            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            Uri.parse("package:$packageName")
+                        )
+                    )
+                }
+            } else {
+                alarmPermissionBanner.isVisible = false
+            }
+        } else {
+            alarmPermissionBanner.isVisible = false
+        }
     }
 
     private fun applyFilters(contests: List<ContestModel>? = viewModel.contests.value) {
@@ -567,7 +590,7 @@ class MainActivity : AppCompatActivity() {
         }
         rAdapter.submitContests(remindersList)
         
-        val areNotificationsEnabled = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val areNotificationsEnabled = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
             .getBoolean("enable_notifications", true)
             
         if (!areNotificationsEnabled) {
