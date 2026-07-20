@@ -14,7 +14,7 @@ interface ClistApiService {
 object RetrofitClient {
     // Public GitHub Pages feed. No credentials required.
     // Populated by: .github/workflows/refresh-contests.yml
-    const val BASE_URL = "https://dhruv-1309.github.io/CodeCountdown/"
+    const val BASE_URL = "https://dhruv-1309.github.io/Contestory/"
 
     val apiService: ClistApiService by lazy {
         Retrofit.Builder()
