@@ -89,6 +89,15 @@ class NotificationScheduler(private val context: Context) {
                 schedule(contest, fifteenMinsBefore, 2, "${contest.name} starts in 15 minutes. Join now!")
                 newIds.add(id)
             }
+
+            // At Start Time — guaranteed fallback (BUG-N2 fix).
+            // Fires as long as the contest hasn't started yet, so the user
+            // always gets at least one notification even if the app was opened
+            // after both earlier windows had already passed (e.g. opened 5
+            // minutes before the contest starts).
+            val id = notificationId(contest, 3)
+            schedule(contest, startMillis, 3, "${contest.name} is starting now! Open and join.")
+            newIds.add(id)
         }
 
         // Cancel any alarm that was registered before but is not in this run's set.
@@ -142,7 +151,7 @@ class NotificationScheduler(private val context: Context) {
     }
 
     private fun cancelForContest(contest: ContestModel) {
-        listOf(1, 2).forEach { offset -> cancelById(notificationId(contest, offset)) }
+        listOf(1, 2, 3).forEach { offset -> cancelById(notificationId(contest, offset)) }
     }
 
     /**
