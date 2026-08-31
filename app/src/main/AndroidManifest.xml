@@ -29,6 +29,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- Fires once every ~24 h to keep contest alarm schedules fresh,
+             even when the user has not opened the app recently. -->
+        <receiver android:name=".DailyRefreshReceiver" android:exported="false"/>
+
+
         <!-- ─── OTA: Download completion receiver ─── -->
         <receiver
             android:name=".update.DownloadCompleteReceiver"

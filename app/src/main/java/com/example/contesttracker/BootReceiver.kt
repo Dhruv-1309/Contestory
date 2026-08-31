@@ -35,6 +35,13 @@ class BootReceiver : BroadcastReceiver() {
             Log.d(TAG, "No cached contests found.")
         }
 
+        // ── Step 1b: Re-register the daily background refresh alarm ──────────
+        // Repeating AlarmManager alarms are wiped on reboot. Without this,
+        // the daily reschedule would stop working until the user next opens
+        // the app (BUG-N1 fix).
+        DailyRefreshScheduler.schedule(context)
+
+
         // ── Step 2: Best-effort network refresh using goAsync() ───────────────
         // goAsync() extends the receiver's active window so the coroutine is
         // lifecycle-bound. We make a single attempt with a conservative timeout.

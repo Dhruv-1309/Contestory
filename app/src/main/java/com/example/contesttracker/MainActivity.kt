@@ -97,12 +97,20 @@ class MainActivity : AppCompatActivity() {
             
             loadInitialData()
 
+            // ── Daily background alarm (BUG-N1 fix) ───────────────────────
+            // Ensures contest alarms stay current even when the app is not
+            // opened for several days. Safe to call repeatedly — uses
+            // FLAG_UPDATE_CURRENT so it never creates duplicate alarms.
+            DailyRefreshScheduler.schedule(this)
+            // ──────────────────────────────────────────────────────────────
+
             // ── OTA Update System ──────────────────────────────────────────
             // Handle install intent forwarded by DownloadCompleteReceiver
             handleInstallIntent(intent)
             // Auto-check for updates at most once every 24 h (silent on error)
             UpdateManager.checkForUpdates(this)
             // ──────────────────────────────────────────────────────────────
+
 
         } catch (e: Exception) {
             e.printStackTrace()
