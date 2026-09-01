@@ -58,6 +58,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var upcomingLabel: View
     private lateinit var staleBanner: TextView
     private lateinit var alarmPermissionBanner: TextView
+    private lateinit var batteryOptBanner: TextView
     
     private val selectedPlatforms = Platform.entries.toMutableSet()
 
@@ -148,8 +149,8 @@ class MainActivity : AppCompatActivity() {
         updateAlarmPermissionBanner()
         val hasPermissionNow = !alarmPermissionBanner.isVisible
 
-        // If permission was just granted while the app was in the background,
-        // immediately reschedule all alarms so they use exact timing.
+        // If exact alarm permission was just granted, immediately reschedule
+        // all alarms so they use exact timing (BUG-N3 fix).
         if (!hadPermission && hasPermissionNow) {
             val scheduler = NotificationScheduler(this)
             val contests = viewModel.contests.value
@@ -158,6 +159,12 @@ class MainActivity : AppCompatActivity() {
             if (contests.isNotEmpty()) {
                 scheduler.scheduleAll(contests)
             }
+        }
+
+        // Re-check battery optimization banner on every resume so it
+        // dismisses automatically when the user grants exemption (BUG-N4 fix).
+        if (::batteryOptBanner.isInitialized) {
+            updateBatteryOptBanner()
         }
     }
 
@@ -188,6 +195,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Shows or hides the battery optimization banner.
+     * On many OEM devices (Samsung, Xiaomi, OnePlus etc.), Android's battery
+     * saver can kill BroadcastReceivers before they fire. Requesting exemption
+     * from battery optimization prevents this (BUG-N4 fix).
+     */
+    private fun updateBatteryOptBanner() {
+        val pm = getSystemService(android.os.PowerManager::class.java)
+        if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+            batteryOptBanner.isVisible = true
+            batteryOptBanner.setOnClickListener {
+                runCatching {
+                    startActivity(
+                        Intent(
+                            android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:$packageName")
+                        )
+                    )
+                }
+            }
+        } else {
+            batteryOptBanner.isVisible = false
+            batteryOptBanner.setOnClickListener(null)
+        }
+    }
 
     /**
      * Called when MainActivity is already at the top of the stack and a new
@@ -265,6 +297,7 @@ class MainActivity : AppCompatActivity() {
         upcomingLabel         = homeLayout.findViewById(R.id.upcomingLabel)
         staleBanner           = homeLayout.findViewById(R.id.staleBanner)
         alarmPermissionBanner = homeLayout.findViewById(R.id.alarmPermissionBanner)
+        batteryOptBanner      = homeLayout.findViewById(R.id.batteryOptBanner)
 
         val notificationButton: ImageButton = findViewById(R.id.notificationButton)
         notificationButton.setOnClickListener {
@@ -562,6 +595,10 @@ class MainActivity : AppCompatActivity() {
         // is not granted. Extracted to updateAlarmPermissionBanner() so it can also
         // be called from onResume() when returning from the permission screen (BUG-N3).
         updateAlarmPermissionBanner()
+
+        // Show a battery optimization banner if Android can kill the notification
+        // receiver before it fires — common on Samsung, Xiaomi, OnePlus (BUG-N4).
+        updateBatteryOptBanner()
     }
 
     private fun applyFilters(contests: List<ContestModel>? = viewModel.contests.value) {

@@ -132,7 +132,23 @@
                     android:textStyle="bold"
                     android:visibility="gone" />
 
-
+                <!-- Battery optimization banner — shown when Android battery saver
+                     can kill the notification receiver before it fires (common on
+                     Samsung, Xiaomi, OnePlus). Tapping requests exemption.
+                     GONE by default. -->
+                <TextView
+                    android:id="@+id/batteryOptBanner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#1A2200"
+                    android:gravity="center"
+                    android:paddingVertical="10dp"
+                    android:paddingHorizontal="16dp"
+                    android:text="🔋 Battery optimization may block notifications. Tap to fix."
+                    android:textColor="#AAEE44"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
 
                 <!-- Platform Selector Chips -->
                 <HorizontalScrollView
