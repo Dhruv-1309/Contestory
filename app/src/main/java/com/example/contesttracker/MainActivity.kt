@@ -645,11 +645,14 @@ class MainActivity : AppCompatActivity() {
         val filteredByPlatform = contests?.filter { it.platform?.let { p -> p in selectedPlatforms } == true } ?: emptyList()
         val now = System.currentTimeMillis()
 
-        // Restrict home tab to today's contests only
-        val todayKey = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
+        // Restrict home tab to today's contests only.
+        // BUG-C2 fix: create the formatter once outside the loop instead of
+        // allocating a new SimpleDateFormat instance for every contest.
+        val dayFmt   = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
+        val todayKey = dayFmt.format(java.util.Date())
         val filteredByDayAndPlatform = filteredByPlatform.filter {
             val startMillis = ContestTimeUtils.startTimeMillis(it.start) ?: 0
-            java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date(startMillis)) == todayKey
+            dayFmt.format(java.util.Date(startMillis)) == todayKey
         }
 
         val running = filteredByDayAndPlatform.filter {

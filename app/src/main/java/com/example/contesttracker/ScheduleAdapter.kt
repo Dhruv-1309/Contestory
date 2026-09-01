@@ -40,21 +40,14 @@ class ScheduleAdapter(
 
     private fun updateItems() {
         items.clear()
-        val groups = allContests.groupBy {
-            val millis = ContestTimeUtils.startTimeMillis(it.start) ?: 0
-            val date = Date(millis)
-            SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date)
+        // BUG-C3 fix: use the cached formatter from the companion object instead
+        // of allocating a new SimpleDateFormat instance for every contest.
+        val groups = allContests.groupBy { contest ->
+            val millis = ContestTimeUtils.startTimeMillis(contest.start) ?: 0
+            DATE_KEY_FMT.format(Date(millis))
         }
 
         groups.toSortedMap().forEach { (dateKey, contestsInGroup) ->
-            // Use the first item's context for resources if available, though any view context would work.
-            // A more robust way is to pass context to the adapter, but this is simple enough.
-            val firstContest = contestsInGroup.firstOrNull()
-            // We can resolve getDisplayDate dynamically in bind, but the adapter builds items first. 
-            // We'll pass the context from the ViewHolder later, or just store a marker enum. 
-            // Better to change getDisplayDate to be called inside HeaderViewHolder.bind!
-            // Wait, items.add(ScheduleItem.Header) takes displayText.
-            // Let's modify ScheduleAdapter to just hold the dateKey and let the ViewHolder resolve the display text.
             val isCollapsed = collapsedGroups.contains(dateKey)
             items.add(ScheduleItem.Header(dateKey, isCollapsed))
             if (!isCollapsed) {
@@ -65,8 +58,12 @@ class ScheduleAdapter(
     }
 
     private fun getDisplayDate(context: android.content.Context, dateKey: String): String {
-        val today    = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        val tomorrow = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(System.currentTimeMillis() + 86_400_000))
+        // BUG-C3 fix: reuse the companion-object formatter.
+        // BUG-Q3 fix: use Calendar to add 1 day instead of +86_400_000 ms which
+        // is wrong during DST transitions (a day can be 23 or 25 hours).
+        val today = DATE_KEY_FMT.format(Date())
+        val cal = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, 1) }
+        val tomorrow = DATE_KEY_FMT.format(cal.time)
         return when (dateKey) {
             today    -> context.getString(R.string.today)
             tomorrow -> context.getString(R.string.tomorrow)
@@ -215,5 +212,11 @@ class ScheduleAdapter(
     companion object {
         private const val VIEW_TYPE_HEADER  = 0
         private const val VIEW_TYPE_CONTEST = 1
+
+        // BUG-C3 fix: shared formatter avoids creating a new SimpleDateFormat
+        // instance for every contest in updateItems() and getDisplayDate().
+        // SimpleDateFormat is not thread-safe, but ScheduleAdapter runs entirely
+        // on the main thread so this is safe to share as a class-level instance.
+        private val DATE_KEY_FMT = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
     }
 }

@@ -168,11 +168,20 @@ class NotificationScheduler(private val context: Context) {
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
-    /** Derives a stable, Int-safe notification ID from a contest and alarm type. */
-    private fun notificationId(contest: ContestModel, typeOffset: Int): Int {
-        val safeId = (contest.id % Int.MAX_VALUE).toInt().and(0x7FFF_FFFF)
-        return (safeId * 10) + typeOffset
-    }
+    /**
+     * Derives a stable, Int-safe notification ID from a contest and alarm type.
+     *
+     * BUG-C1 fix: the old formula `(safeId * 10) + typeOffset` could silently
+     * collide when two contests shared the same lower 31 bits of their ID,
+     * causing one PendingIntent to overwrite the other.
+     *
+     * Using [java.util.Objects.hash] mixes the full contest ID and typeOffset
+     * through a proper hash function, then masks to a positive Int. The three
+     * typeOffset values (1, 2, 3) always produce different outputs for the same
+     * contest ID, and different contest IDs are extremely unlikely to collide.
+     */
+    private fun notificationId(contest: ContestModel, typeOffset: Int): Int =
+        java.util.Objects.hash(contest.id, typeOffset).and(0x7FFF_FFFF)
 
     /** Cancels a single alarm by its notification ID. */
     private fun cancelById(notificationId: Int) {
