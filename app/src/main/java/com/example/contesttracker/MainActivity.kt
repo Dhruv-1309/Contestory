@@ -174,6 +174,15 @@ class MainActivity : AppCompatActivity() {
      * the system permission screen. Safe to call multiple times.
      */
     private fun updateAlarmPermissionBanner() {
+        // BUG-U2 fix: if the user has globally disabled notifications there is
+        // no point asking for alarm permission — hide the banner immediately.
+        val notificationsEnabled = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+            .getBoolean("enable_notifications", true)
+        if (!notificationsEnabled) {
+            alarmPermissionBanner.isVisible = false
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val alarmManager = getSystemService(AlarmManager::class.java)
             if (!alarmManager.canScheduleExactAlarms()) {
@@ -202,6 +211,15 @@ class MainActivity : AppCompatActivity() {
      * from battery optimization prevents this (BUG-N4 fix).
      */
     private fun updateBatteryOptBanner() {
+        // BUG-U2 fix: no point prompting for battery opt exemption if the
+        // user has disabled notifications globally.
+        val notificationsEnabled = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+            .getBoolean("enable_notifications", true)
+        if (!notificationsEnabled) {
+            batteryOptBanner.isVisible = false
+            return
+        }
+
         val pm = getSystemService(android.os.PowerManager::class.java)
         if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
             batteryOptBanner.isVisible = true
