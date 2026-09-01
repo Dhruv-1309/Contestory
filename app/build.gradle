@@ -11,8 +11,8 @@ android {
         applicationId "com.dhruv.codecountdown"
         minSdk 23
         targetSdk 35
-        versionCode 18
-        versionName "1.2.5"
+        versionCode 19
+        versionName "1.2.6"
     }
 
     // Load keystore properties from local.properties
@@ -45,6 +45,10 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 }
 

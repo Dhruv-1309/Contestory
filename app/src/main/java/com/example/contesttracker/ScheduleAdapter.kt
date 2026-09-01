@@ -7,6 +7,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.view.isVisible
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
 import java.util.*
@@ -39,7 +40,8 @@ class ScheduleAdapter(
     }
 
     private fun updateItems() {
-        items.clear()
+        // Build the new item list first.
+        val newItems = mutableListOf<ScheduleItem>()
         // BUG-C3 fix: use the cached formatter from the companion object instead
         // of allocating a new SimpleDateFormat instance for every contest.
         val groups = allContests.groupBy { contest ->
@@ -49,12 +51,31 @@ class ScheduleAdapter(
 
         groups.toSortedMap().forEach { (dateKey, contestsInGroup) ->
             val isCollapsed = collapsedGroups.contains(dateKey)
-            items.add(ScheduleItem.Header(dateKey, isCollapsed))
+            newItems.add(ScheduleItem.Header(dateKey, isCollapsed))
             if (!isCollapsed) {
-                contestsInGroup.forEach { items.add(ScheduleItem.Contest(it)) }
+                contestsInGroup.forEach { newItems.add(ScheduleItem.Contest(it)) }
             }
         }
-        notifyDataSetChanged()
+
+        // BUG-C4 fix: use DiffUtil instead of notifyDataSetChanged() so only
+        // changed rows are redrawn, giving smooth animations and better performance.
+        val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize() = items.size
+            override fun getNewListSize() = newItems.size
+            override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
+                val old = items[oldPos]; val new = newItems[newPos]
+                return when {
+                    old is ScheduleItem.Header  && new is ScheduleItem.Header  -> old.dateKey == new.dateKey
+                    old is ScheduleItem.Contest && new is ScheduleItem.Contest -> old.contest.id == new.contest.id
+                    else -> false
+                }
+            }
+            override fun areContentsTheSame(oldPos: Int, newPos: Int) = items[oldPos] == newItems[newPos]
+        })
+
+        items.clear()
+        items.addAll(newItems)
+        diffResult.dispatchUpdatesTo(this)
     }
 
     private fun getDisplayDate(context: android.content.Context, dateKey: String): String {

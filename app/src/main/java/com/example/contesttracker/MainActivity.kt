@@ -547,6 +547,12 @@ class MainActivity : AppCompatActivity() {
 
         // ── App Updates section ────────────────────────────────────────────
         setupUpdateSettingsUI()
+
+        // BUG-Q4 fix: the version string was hardcoded to "Version 1.0.0" in
+        // strings.xml. Read the actual installed version from BuildConfig so
+        // the Settings screen always shows the real current version.
+        settingsLayout.findViewById<android.widget.TextView>(R.id.versionInfoText)
+            ?.text = "Version ${BuildConfig.VERSION_NAME}"
     }
 
     /**
