@@ -137,8 +137,14 @@ class ContestAdapter(
             
             updateCountdown(contest)
 
-            openButton.setOnClickListener {
-                contest.url?.let { onOpenContest(it) }
+            // BUG-U4 fix: hide the button when there is no URL so the user
+            // never sees a tappable button that silently does nothing.
+            if (contest.url != null) {
+                openButton.isVisible = true
+                openButton.setOnClickListener { onOpenContest(contest.url) }
+            } else {
+                openButton.isVisible = false
+                openButton.setOnClickListener(null)
             }
         }
 

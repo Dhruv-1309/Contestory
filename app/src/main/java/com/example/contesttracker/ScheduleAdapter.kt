@@ -160,8 +160,12 @@ class ScheduleAdapter(
                 bellButton.isVisible = false
             }
 
-            itemView.setOnClickListener {
-                contest.url?.let { url -> onContestClick?.invoke(url) }
+            // BUG-U4 fix: remove click listener when URL is absent so the row
+            // doesn't provide tap feedback for an action that does nothing.
+            if (contest.url != null) {
+                itemView.setOnClickListener { onContestClick?.invoke(contest.url) }
+            } else {
+                itemView.setOnClickListener(null)
             }
         }
 
