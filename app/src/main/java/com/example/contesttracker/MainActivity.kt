@@ -59,8 +59,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var staleBanner: TextView
     private lateinit var alarmPermissionBanner: TextView
     private lateinit var batteryOptBanner: TextView
-    
+
+    // BUG-U3 fix: re-run applyFilters() every 60 s so the Live Now / Upcoming
+    // Today split corrects itself when a contest starts or ends mid-session,
+    // without waiting for the next API refresh.
+    private val filterRefreshHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val filterRefreshRunnable = object : Runnable {
+        override fun run() {
+            applyFilters()
+            filterRefreshHandler.postDelayed(this, FILTER_REFRESH_INTERVAL_MS)
+        }
+    }
+
     private val selectedPlatforms = Platform.entries.toMutableSet()
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Read and apply theme preference before layout inflation
@@ -125,12 +137,17 @@ class MainActivity : AppCompatActivity() {
             liveAdapter?.startCountdown()
             upcomingAdapter?.startCountdown()
         }
+        // BUG-U3: start periodic filter refresh so live/upcoming split
+        // self-corrects every minute without waiting for the next API call.
+        filterRefreshHandler.postDelayed(filterRefreshRunnable, FILTER_REFRESH_INTERVAL_MS)
     }
 
     override fun onStop() {
         super.onStop()
         liveAdapter?.stopCountdown()
         upcomingAdapter?.stopCountdown()
+        // Stop the periodic refresh when app is not visible to avoid wasting resources.
+        filterRefreshHandler.removeCallbacks(filterRefreshRunnable)
     }
 
     /**
@@ -722,5 +739,10 @@ class MainActivity : AppCompatActivity() {
         }.onFailure {
             Toast.makeText(this, getString(R.string.error_browser), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    companion object {
+        /** How often (ms) to re-run applyFilters() to keep live/upcoming split current. */
+        private const val FILTER_REFRESH_INTERVAL_MS = 60_000L
     }
 }
