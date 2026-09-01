@@ -133,6 +133,63 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Called every time the activity returns to the foreground — including
+     * when the user comes back from the Android exact-alarm permission screen.
+     *
+     * BUG-N3 fix: re-evaluates the alarm permission state so the banner
+     * disappears immediately after the user grants the permission, and alarms
+     * are rescheduled using exact timing right away.
+     */
+    override fun onResume() {
+        super.onResume()
+        if (!::alarmPermissionBanner.isInitialized) return
+
+        val hadPermission = !alarmPermissionBanner.isVisible   // banner visible = no permission
+        updateAlarmPermissionBanner()
+        val hasPermissionNow = !alarmPermissionBanner.isVisible
+
+        // If permission was just granted while the app was in the background,
+        // immediately reschedule all alarms so they use exact timing.
+        if (!hadPermission && hasPermissionNow) {
+            val scheduler = NotificationScheduler(this)
+            val contests = viewModel.contests.value
+                ?.takeIf { it.isNotEmpty() }
+                ?: scheduler.getCachedContests()
+            if (contests.isNotEmpty()) {
+                scheduler.scheduleAll(contests)
+            }
+        }
+    }
+
+    /**
+     * Shows or hides the alarm permission banner based on the current
+     * SCHEDULE_EXACT_ALARM grant state. Wires the tap action to open
+     * the system permission screen. Safe to call multiple times.
+     */
+    private fun updateAlarmPermissionBanner() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(AlarmManager::class.java)
+            if (!alarmManager.canScheduleExactAlarms()) {
+                alarmPermissionBanner.isVisible = true
+                alarmPermissionBanner.setOnClickListener {
+                    startActivity(
+                        Intent(
+                            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            Uri.parse("package:$packageName")
+                        )
+                    )
+                }
+            } else {
+                alarmPermissionBanner.isVisible = false
+                alarmPermissionBanner.setOnClickListener(null)
+            }
+        } else {
+            alarmPermissionBanner.isVisible = false
+        }
+    }
+
+
+    /**
      * Called when MainActivity is already at the top of the stack and a new
      * intent arrives (e.g. from DownloadCompleteReceiver after a download).
      */
@@ -502,25 +559,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Show an alarm permission banner on Android 12+ when SCHEDULE_EXACT_ALARM
-        // is not granted. Without it, notification delivery can be delayed by hours.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val alarmManager = getSystemService(AlarmManager::class.java)
-            if (!alarmManager.canScheduleExactAlarms()) {
-                alarmPermissionBanner.isVisible = true
-                alarmPermissionBanner.setOnClickListener {
-                    startActivity(
-                        Intent(
-                            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                            Uri.parse("package:$packageName")
-                        )
-                    )
-                }
-            } else {
-                alarmPermissionBanner.isVisible = false
-            }
-        } else {
-            alarmPermissionBanner.isVisible = false
-        }
+        // is not granted. Extracted to updateAlarmPermissionBanner() so it can also
+        // be called from onResume() when returning from the permission screen (BUG-N3).
+        updateAlarmPermissionBanner()
     }
 
     private fun applyFilters(contests: List<ContestModel>? = viewModel.contests.value) {
