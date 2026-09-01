@@ -34,6 +34,17 @@
              even when the user has not opened the app recently. -->
         <receiver android:name=".DailyRefreshReceiver" android:exported="false"/>
 
+        <!-- Reacts to SCHEDULE_EXACT_ALARM permission grant/revoke events
+             (Android 12+). Reschedules or cancels alarms immediately so the
+             alarm schedule is always consistent with the current permission
+             state, even when the app is in the background (BUG-N5 fix). -->
+        <receiver android:name=".AlarmPermissionReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"/>
+            </intent-filter>
+        </receiver>
+
+
 
         <!-- ─── OTA: Download completion receiver ─── -->
         <receiver
