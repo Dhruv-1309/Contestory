@@ -147,7 +147,13 @@ class ScheduleAdapter(
             val startMillis = ContestTimeUtils.startTimeMillis(contest.start) ?: 0
             time.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(startMillis))
 
-            if (showReminderToggle) {
+            // BUG-U1 fix: only show the bell toggle for contests that haven't
+            // started yet. Once a contest is live or has ended, all notification
+            // windows (1h, 15m, start) are in the past — toggling the bell does
+            // nothing because scheduleAll() skips contests where startMillis <= now.
+            // Hiding it avoids a confusing non-functional button.
+            val hasStarted = System.currentTimeMillis() >= startMillis
+            if (showReminderToggle && !hasStarted) {
                 bellButton.isVisible = true
                 bindBellState(contest)
             } else {
