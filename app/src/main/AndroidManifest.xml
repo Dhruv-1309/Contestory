@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <!-- ─── OTA Update permissions ─── -->
     <!-- Required to trigger the system package installer on API 26+ -->
@@ -22,6 +25,11 @@
 
         <!-- ─── Existing receivers ─── -->
         <receiver android:name=".NotificationReceiver" android:exported="false"/>
+        <receiver android:name=".ContestAlarmReceiver" android:exported="false" />
+        <service
+            android:name=".ContestAlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>

@@ -90,6 +90,16 @@ class NotificationScheduler(private val context: Context) {
                 newIds.add(id)
             }
 
+            // Alarm 5 minutes before every opted-in contest. This uses a
+            // dedicated receiver/service so it plays the device alarm sound
+            // rather than behaving like a standard notification.
+            val fiveMinutesBefore = startMillis - (5 * 60 * 1000)
+            if (fiveMinutesBefore > now) {
+                val id = notificationId(contest, 4)
+                scheduleAlarm(contest, fiveMinutesBefore, id)
+                newIds.add(id)
+            }
+
             // At Start Time — guaranteed fallback (BUG-N2 fix).
             // Fires as long as the contest hasn't started yet, so the user
             // always gets at least one notification even if the app was opened
@@ -150,8 +160,36 @@ class NotificationScheduler(private val context: Context) {
         }
     }
 
+    private fun scheduleAlarm(contest: ContestModel, timeMillis: Long, alarmId: Int) {
+        val intent = Intent(context, ContestAlarmReceiver::class.java).apply {
+            putExtra(ContestAlarmReceiver.EXTRA_CONTEST_NAME, contest.name)
+            putExtra(ContestAlarmReceiver.EXTRA_PLATFORM, contest.platform?.displayName ?: "Contest")
+            putExtra(ContestAlarmReceiver.EXTRA_ALARM_ID, alarmId)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            alarmId,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        scheduleExact(timeMillis, pendingIntent)
+    }
+
+    private fun scheduleExact(timeMillis: Long, pendingIntent: PendingIntent) {
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+            } else {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to schedule contest alarm", e)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+        }
+    }
+
     private fun cancelForContest(contest: ContestModel) {
-        listOf(1, 2, 3).forEach { offset -> cancelById(notificationId(contest, offset)) }
+        listOf(1, 2, 3, 4).forEach { offset -> cancelById(notificationId(contest, offset)) }
     }
 
     /**
@@ -185,17 +223,17 @@ class NotificationScheduler(private val context: Context) {
 
     /** Cancels a single alarm by its notification ID. */
     private fun cancelById(notificationId: Int) {
-        val intent = Intent(context, NotificationReceiver::class.java)
+        cancelReceiverAlarm(NotificationReceiver::class.java, notificationId)
+        cancelReceiverAlarm(ContestAlarmReceiver::class.java, notificationId)
+    }
+
+    private fun cancelReceiverAlarm(receiver: Class<*>, notificationId: Int) {
         val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            notificationId,
-            intent,
+            context, notificationId, Intent(context, receiver),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
-        )
-        if (pendingIntent != null) {
-            alarmManager.cancel(pendingIntent)
-            pendingIntent.cancel()
-        }
+        ) ?: return
+        alarmManager.cancel(pendingIntent)
+        pendingIntent.cancel()
     }
 
     /** Persists the set of currently scheduled notification IDs to SharedPreferences. */

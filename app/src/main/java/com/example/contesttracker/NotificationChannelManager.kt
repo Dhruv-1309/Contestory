@@ -7,6 +7,7 @@ import android.os.Build
 
 object NotificationChannelManager {
     const val CHANNEL_ID = "contest_reminders"
+    const val ALARM_CHANNEL_ID = "contest_alarms"
     
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -19,6 +20,16 @@ object NotificationChannelManager {
             val notificationManager: NotificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
+            val alarmChannel = NotificationChannel(
+                ALARM_CHANNEL_ID,
+                "Contest alarms",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Audible alarms five minutes before enabled contests"
+                setSound(null, null)
+                enableVibration(false)
+            }
+            notificationManager.createNotificationChannel(alarmChannel)
         }
     }
 }

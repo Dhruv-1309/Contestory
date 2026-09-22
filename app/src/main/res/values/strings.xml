@@ -47,7 +47,7 @@
 
     <!-- Accessibility descriptions -->
     <string name="desc_notifications">Notifications</string>
-    <string name="desc_toggle_reminder">Toggle reminder</string>
+    <string name="desc_toggle_reminder">Turn the contest alarm on or off</string>
     <string name="state_collapsed">Collapsed</string>
     <string name="state_expanded">Expanded</string>
     <string name="error_startup">Something went wrong during startup. Please restart the app.</string>
