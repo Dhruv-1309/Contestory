@@ -21,17 +21,17 @@
         <item name="itemBackground">@drawable/bg_nav_item</item>
         <item name="labelVisibilityMode">labeled</item>
         <item name="elevation">0dp</item>
-        <item name="itemPaddingTop">6dp</item>
-        <item name="itemPaddingBottom">6dp</item>
+        <item name="itemPaddingTop">8dp</item>
+        <item name="itemPaddingBottom">8dp</item>
         <item name="itemIconSize">22dp</item>
         <item name="itemTextAppearanceActive">@style/Widget.App.BottomNavigationView.Label.Active</item>
         <item name="itemTextAppearanceInactive">@style/Widget.App.BottomNavigationView.Label.Inactive</item>
     </style>
 
     <style name="Widget.App.BottomNavigationView.Indicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
-        <item name="android:color">@android:color/transparent</item>
-        <item name="android:width">24dp</item>
-        <item name="android:height">24dp</item>
+        <item name="android:color">@color/accent_purple_muted</item>
+        <item name="android:width">52dp</item>
+        <item name="android:height">30dp</item>
     </style>
 
     <style name="Widget.App.BottomNavigationView.Label.Active" parent="TextAppearance.Material3.TitleSmall">

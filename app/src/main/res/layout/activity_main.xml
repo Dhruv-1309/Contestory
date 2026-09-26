@@ -98,55 +98,54 @@
                 android:orientation="vertical"
                 android:paddingBottom="24dp">
 
-                <!-- Stale data banner — shown when the UI is displaying cached data
-                     after a network failure. GONE by default; visibility controlled
-                     by ContestViewModel.isUsingCachedData. Tapping triggers a refresh. -->
+                <!-- Stale data banner — shown when displaying cached data after network failure -->
                 <TextView
                     android:id="@+id/staleBanner"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@color/accent_purple_muted"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_banner_stale"
                     android:gravity="center"
                     android:paddingVertical="10dp"
                     android:paddingHorizontal="16dp"
                     android:text="@string/stale_data_banner"
-                    android:textColor="@color/accent_purple"
-                    android:textSize="13sp"
+                    android:textColor="@color/banner_stale_text"
+                    android:textSize="12.5sp"
                     android:textStyle="bold"
                     android:visibility="gone" />
 
-                <!-- Exact alarm permission banner — shown on Android 12+ when
-                     SCHEDULE_EXACT_ALARM has not been granted. Tapping opens the
-                     system permission screen. GONE by default. -->
+                <!-- Exact alarm permission banner -->
                 <TextView
                     android:id="@+id/alarmPermissionBanner"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="#332200"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_banner_warning"
                     android:gravity="center"
                     android:paddingVertical="10dp"
                     android:paddingHorizontal="16dp"
                     android:text="⚠️ Exact alarm permission missing — notifications may be delayed. Tap to fix."
-                    android:textColor="#FFAA00"
-                    android:textSize="13sp"
+                    android:textColor="@color/banner_warning_text"
+                    android:textSize="12.5sp"
                     android:textStyle="bold"
                     android:visibility="gone" />
 
-                <!-- Battery optimization banner — shown when Android battery saver
-                     can kill the notification receiver before it fires (common on
-                     Samsung, Xiaomi, OnePlus). Tapping requests exemption.
-                     GONE by default. -->
+                <!-- Battery optimization banner -->
                 <TextView
                     android:id="@+id/batteryOptBanner"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="#1A2200"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_banner_battery"
                     android:gravity="center"
                     android:paddingVertical="10dp"
                     android:paddingHorizontal="16dp"
                     android:text="🔋 Battery optimization may block notifications. Tap to fix."
-                    android:textColor="#AAEE44"
-                    android:textSize="13sp"
+                    android:textColor="@color/banner_battery_text"
+                    android:textSize="12.5sp"
                     android:textStyle="bold"
                     android:visibility="gone" />
 
@@ -174,10 +173,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="20dp"
                     android:layout_marginTop="20dp"
-                    android:letterSpacing="0.1"
+                    android:letterSpacing="0.12"
                     android:text="@string/live_now_section"
-                    android:textColor="@color/text_muted"
-                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp"
                     android:textStyle="bold" />
 
                 <androidx.recyclerview.widget.RecyclerView
@@ -196,10 +195,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="20dp"
                     android:layout_marginTop="20dp"
-                    android:letterSpacing="0.1"
+                    android:letterSpacing="0.12"
                     android:text="@string/upcoming_today_section"
-                    android:textColor="@color/text_muted"
-                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp"
                     android:textStyle="bold" />
 
                 <androidx.recyclerview.widget.RecyclerView
@@ -287,9 +286,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="20dp"
+        android:layout_marginBottom="16dp"
         app:cardCornerRadius="24dp"
-        app:cardElevation="10dp"
+        app:cardElevation="8dp"
         app:strokeColor="@color/border"
         app:strokeWidth="1dp"
         app:cardBackgroundColor="@color/bg_card"
@@ -298,7 +297,7 @@
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottomNavigation"
             android:layout_width="match_parent"
-            android:layout_height="60dp"
+            android:layout_height="62dp"
             app:menu="@menu/bottom_nav_menu"
             style="@style/Widget.App.BottomNavigationView"
             app:paddingBottomSystemWindowInsets="false" />

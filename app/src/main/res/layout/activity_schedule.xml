@@ -13,7 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingBottom="80dp" />
+        android:paddingBottom="84dp" />
 
     <LinearLayout
         android:id="@+id/scheduleEmptyState"
@@ -29,11 +29,12 @@
         tools:visibility="visible">
 
         <ImageView
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:alpha="0.3"
-            android:src="@drawable/ic_settings"
-            app:tint="@color/text_secondary" />
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:alpha="0.35"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_nav_schedule"
+            app:tint="@color/accent_purple" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -41,7 +42,8 @@
             android:layout_marginTop="16dp"
             android:text="@string/no_contests_scheduled"
             android:textColor="@color/text_secondary"
-            android:textSize="16sp" />
+            android:textSize="16sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

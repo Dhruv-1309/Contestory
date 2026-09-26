@@ -30,6 +30,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import android.util.TypedValue
 
 class MainActivity : AppCompatActivity() {
 
@@ -403,10 +404,13 @@ class MainActivity : AppCompatActivity() {
             adapter = upcomingAdapter
         }
 
-        val chipBg   = ContextCompat.getColorStateList(this, R.color.selector_chip_bg)
-        val chipText = ContextCompat.getColorStateList(this, R.color.selector_chip_text)
+        val chipBg     = ContextCompat.getColorStateList(this, R.color.selector_chip_bg)
+        val chipText   = ContextCompat.getColorStateList(this, R.color.selector_chip_text)
+        val chipStroke = ContextCompat.getColorStateList(this, R.color.selector_chip_stroke)
 
         val platformChipGroup: ChipGroup = findViewById(R.id.platformChipGroup)
+        val strokeWidthPx  = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
+        val cornerRadiusPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, resources.displayMetrics)
 
         val allChip = Chip(this).apply {
             text = "All"
@@ -414,7 +418,11 @@ class MainActivity : AppCompatActivity() {
             isChecked = true
             chipBackgroundColor = chipBg
             setTextColor(chipText)
-            chipStrokeWidth = 0f
+            chipStrokeColor = chipStroke
+            chipStrokeWidth = strokeWidthPx
+            shapeAppearanceModel = shapeAppearanceModel.toBuilder()
+                .setAllCornerSizes(cornerRadiusPx)
+                .build()
             setOnCheckedChangeListener { _, isChecked ->
                 if (isChecked) {
                     selectedPlatforms.addAll(Platform.entries)
@@ -439,7 +447,15 @@ class MainActivity : AppCompatActivity() {
                 isChecked = true
                 chipBackgroundColor = chipBg
                 setTextColor(chipText)
-                chipStrokeWidth = 0f
+                chipStrokeColor = chipStroke
+                chipStrokeWidth = strokeWidthPx
+                chipIcon = ContextCompat.getDrawable(this@MainActivity, platform.logoResId)
+                isChipIconVisible = true
+                chipIconTint = null
+                chipIconSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, resources.displayMetrics)
+                shapeAppearanceModel = shapeAppearanceModel.toBuilder()
+                    .setAllCornerSizes(cornerRadiusPx)
+                    .build()
                 
                 setOnCheckedChangeListener { _, isChecked ->
                     if (isChecked) selectedPlatforms.add(platform) else selectedPlatforms.remove(platform)
