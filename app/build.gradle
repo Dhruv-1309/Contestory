@@ -11,8 +11,8 @@ android {
         applicationId "com.dhruv.codecountdown"
         minSdk 23
         targetSdk 35
-        versionCode 22
-        versionName "1.2.9"
+        versionCode 23
+        versionName "1.2.10"
     }
 
     // Load keystore properties from local.properties
