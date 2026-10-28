@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 /** Starts the audible five-minute contest alarm scheduled by [NotificationScheduler]. */
 class ContestAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        NotificationChannelManager.createNotificationChannel(context)
+
         val contestName = intent.getStringExtra(EXTRA_CONTEST_NAME) ?: return
         val platform = intent.getStringExtra(EXTRA_PLATFORM) ?: "Contest"
         val alarmId = intent.getIntExtra(EXTRA_ALARM_ID, 0).takeIf { it != 0 } ?: 9_001
@@ -66,6 +68,7 @@ class ContestAlarmReceiver : BroadcastReceiver() {
             )
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setColor(ContextCompat.getColor(context, R.color.accent_purple))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

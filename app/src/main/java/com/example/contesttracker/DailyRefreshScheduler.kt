@@ -4,44 +4,51 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 
 /**
- * Manages a repeating daily alarm that triggers [DailyRefreshReceiver].
+ * Manages periodic background alarms that trigger [DailyRefreshReceiver].
  *
- * Uses [AlarmManager.setInexactRepeating] with [AlarmManager.INTERVAL_DAY] so
- * Android can batch it with other device wake-ups — this is battery-efficient
- * and still guarantees the receiver fires roughly once every 24 hours.
+ * Runs every ~12 hours to keep contest schedules and alarms up to date,
+ * even when the user has not opened the app on that day.
  *
- * Call [schedule] from:
- *  - [MainActivity.onCreate] — ensures the alarm exists while the app is in use.
- *  - [BootReceiver.onReceive] — re-registers the alarm after a device reboot
- *    (repeating alarms are cleared on reboot).
+ * Uses [AlarmManager.setAndAllowWhileIdle] on API 23+ so the device wakes
+ * from Doze mode to refresh contests and alarms.
  */
 object DailyRefreshScheduler {
 
     private const val TAG = "DailyRefreshScheduler"
     private const val REQUEST_CODE = 9_001
+    private const val REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000L // 12 hours
 
     /**
-     * Schedules (or re-confirms) the daily refresh alarm.
+     * Schedules (or re-arms) the background refresh alarm.
      * Safe to call multiple times — [FLAG_UPDATE_CURRENT] replaces any
      * existing pending intent rather than creating a duplicate.
      */
     fun schedule(context: Context) {
-        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val pi = buildPendingIntent(context, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)!!
+        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        val pi = buildPendingIntent(context, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT) ?: return
 
-        // First firing: 24 h from now.  Subsequent firings: every 24 h.
-        val firstFireAt = System.currentTimeMillis() + AlarmManager.INTERVAL_DAY
-        am.setInexactRepeating(AlarmManager.RTC_WAKEUP, firstFireAt, AlarmManager.INTERVAL_DAY, pi)
+        val nextFireAt = System.currentTimeMillis() + REFRESH_INTERVAL_MS
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextFireAt, pi)
+            } else {
+                am.set(AlarmManager.RTC_WAKEUP, nextFireAt, pi)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to schedule idle-allow daily refresh alarm, falling back to repeating", e)
+            am.setInexactRepeating(AlarmManager.RTC_WAKEUP, nextFireAt, AlarmManager.INTERVAL_HALF_DAY, pi)
+        }
 
-        Log.d(TAG, "Daily refresh alarm scheduled (fires in ~24 h, then every ~24 h).")
+        Log.d(TAG, "Background refresh alarm scheduled (fires in ~12 h).")
     }
 
     /** Cancels the daily refresh alarm (e.g. when notifications are globally disabled). */
     fun cancel(context: Context) {
-        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val pi = buildPendingIntent(context, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE)
             ?: return  // Already cancelled — nothing to do.
         am.cancel(pi)

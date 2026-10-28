@@ -30,6 +30,7 @@ class ContestAlarmService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
     private val timeout = Runnable { stopAlarm() }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -47,7 +48,24 @@ class ContestAlarmService : Service() {
         val alarmId = intent.getIntExtra(ContestAlarmReceiver.EXTRA_ALARM_ID, 0)
             .takeIf { it != 0 } ?: FALLBACK_NOTIFICATION_ID
 
-        startForeground(alarmId, buildNotification(contestName, platform, alarmId, url))
+        // Acquire WakeLock to keep CPU active while alarm rings
+        val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        wakeLock = pm?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Contestory:AlarmWakeLock")?.apply {
+            setReferenceCounted(false)
+            acquire(ALARM_DURATION_MS)
+        }
+
+        val notification = buildNotification(contestName, platform, alarmId, url)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                alarmId,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            )
+        } else {
+            startForeground(alarmId, notification)
+        }
+
         startSoundAndVibration()
         handler.removeCallbacks(timeout)
         handler.postDelayed(timeout, ALARM_DURATION_MS)
@@ -60,6 +78,7 @@ class ContestAlarmService : Service() {
         handler.removeCallbacks(timeout)
         releasePlayer()
         cancelVibrator()
+        releaseWakeLock()
         super.onDestroy()
     }
 
@@ -174,6 +193,7 @@ class ContestAlarmService : Service() {
     private fun stopAlarm() {
         releasePlayer()
         cancelVibrator()
+        releaseWakeLock()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {
@@ -181,6 +201,15 @@ class ContestAlarmService : Service() {
             stopForeground(true)
         }
         stopSelf()
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) it.release()
+            }
+        } catch (_: Exception) {}
+        wakeLock = null
     }
 
     private fun releasePlayer() {

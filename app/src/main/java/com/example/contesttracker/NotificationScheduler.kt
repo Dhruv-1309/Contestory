@@ -174,7 +174,31 @@ class NotificationScheduler(private val context: Context) {
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        scheduleExact(timeMillis, pendingIntent)
+        val showIntent = PendingIntent.getActivity(
+            context,
+            alarmId,
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    val info = AlarmManager.AlarmClockInfo(timeMillis, showIntent)
+                    alarmManager.setAlarmClock(info, pendingIntent)
+                } else {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+                }
+            } else {
+                val info = AlarmManager.AlarmClockInfo(timeMillis, showIntent)
+                alarmManager.setAlarmClock(info, pendingIntent)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "setAlarmClock failed, falling back to scheduleExact", e)
+            scheduleExact(timeMillis, pendingIntent)
+        }
     }
 
     private fun scheduleExact(timeMillis: Long, pendingIntent: PendingIntent) {

@@ -58,6 +58,7 @@ class DailyRefreshReceiver : BroadcastReceiver() {
                     if (cached.isNotEmpty()) scheduler.scheduleAll(cached)
                 }
             } finally {
+                DailyRefreshScheduler.schedule(context)
                 pendingResult.finish()
             }
         }

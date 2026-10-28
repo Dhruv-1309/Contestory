@@ -11,6 +11,8 @@ import androidx.core.content.ContextCompat
 
 class NotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        NotificationChannelManager.createNotificationChannel(context)
+
         val contestName = intent.getStringExtra("contest_name") ?: return
         val platform = intent.getStringExtra("platform") ?: "Contest"
         val url = intent.getStringExtra("url") ?: ""
@@ -39,6 +41,8 @@ class NotificationReceiver : BroadcastReceiver() {
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setColor(ContextCompat.getColor(context, R.color.accent_purple))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

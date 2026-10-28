@@ -195,6 +195,49 @@ class ContestTrackerTest {
         assertEquals(4, filtered.size)
     }
 
+    @Test
+    fun testNotificationOffsetsAndTiming() {
+        val startMillis = 1_700_000_000_000L
+        val oneHourBefore = startMillis - (60 * 60 * 1000L)
+        val fifteenMinsBefore = startMillis - (15 * 60 * 1000L)
+        val fiveMinutesBefore = startMillis - (5 * 60 * 1000L)
+
+        assertEquals(3_600_000L, startMillis - oneHourBefore)
+        assertEquals(900_000L, startMillis - fifteenMinsBefore)
+        assertEquals(300_000L, startMillis - fiveMinutesBefore)
+
+        assertTrue(oneHourBefore < fifteenMinsBefore)
+        assertTrue(fifteenMinsBefore < fiveMinutesBefore)
+        assertTrue(fiveMinutesBefore < startMillis)
+    }
+
+    @Test
+    fun testNotificationIdUniqueness() {
+        val contestId1 = 12345L
+        val contestId2 = 12346L
+
+        fun calcId(cId: Long, offset: Int): Int =
+            java.util.Objects.hash(cId, offset).and(0x7FFF_FFFF)
+
+        val id1Hour = calcId(contestId1, 1)
+        val id15Min = calcId(contestId1, 2)
+        val idStart = calcId(contestId1, 3)
+        val idAlarm = calcId(contestId1, 4)
+
+        // All IDs for the same contest must be distinct
+        val ids1 = setOf(id1Hour, id15Min, idStart, idAlarm)
+        assertEquals(4, ids1.size)
+
+        // All IDs must be positive 31-bit integers
+        ids1.forEach { id ->
+            assertTrue("ID must be positive: $id", id >= 0)
+        }
+
+        // Different contest produces distinct IDs
+        val id1HourContest2 = calcId(contestId2, 1)
+        assertNotEquals(id1Hour, id1HourContest2)
+    }
+
     private class FakeSharedPreferences : SharedPreferences {
         val map = mutableMapOf<String, Any?>()
 
