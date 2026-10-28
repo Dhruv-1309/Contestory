@@ -91,6 +91,20 @@
                     android:textSize="10.5sp"
                     android:textStyle="bold" />
             </LinearLayout>
+
+            <!-- Reminder Bell Button for Upcoming Contests -->
+            <ImageButton
+                android:id="@+id/contestBellButton"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/desc_toggle_reminder"
+                android:padding="5dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_bell_on"
+                android:visibility="gone"
+                tools:visibility="visible" />
         </LinearLayout>
 
         <!-- Contest Name -->

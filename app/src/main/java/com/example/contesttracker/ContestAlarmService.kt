@@ -1,5 +1,6 @@
 package com.example.contesttracker
 
+import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -7,27 +8,22 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 
 /**
  * Foreground service for the audible five-minute contest alarm.
  *
- * Plays the device's default alarm tone in a looping [MediaPlayer] (replacing
- * the original one-shot [android.media.Ringtone] that went silent after a
- * single play), vibrates in a repeating pattern, and automatically stops after
- * five minutes or when the user taps the Stop action in the notification.
- *
- * Fixes applied:
- *  - CRITICAL: replaced Ringtone with looping MediaPlayer so the alarm
- *    actually rings for the full 5 minutes instead of stopping after one play.
- *  - CRASH: guard against alarmId == 0 (startForeground(0, …) throws on API 33+).
- *  - DEPRECATION: stopForeground(STOP_FOREGROUND_REMOVE) on API 33+.
+ * Plays the device's default alarm tone in a looping [MediaPlayer], vibrates in
+ * a repeating pattern that bypasses DND mode, and automatically stops after five
+ * minutes or when the user taps Stop in the notification.
  */
 class ContestAlarmService : Service() {
 
@@ -43,19 +39,15 @@ class ContestAlarmService : Service() {
             return START_NOT_STICKY
         }
 
-        // A null intent can arrive if the service is restarted by the OS after
-        // being killed. Since we're START_NOT_STICKY this shouldn't happen, but
-        // guard defensively so we never start a foreground service with no data.
         val contestName = intent?.getStringExtra(ContestAlarmReceiver.EXTRA_CONTEST_NAME)
             ?: run { stopSelf(); return START_NOT_STICKY }
         val platform = intent.getStringExtra(ContestAlarmReceiver.EXTRA_PLATFORM) ?: "Contest"
+        val url = intent.getStringExtra(ContestAlarmReceiver.EXTRA_URL) ?: ""
 
-        // startForeground(0, …) throws IllegalArgumentException on API 33+.
-        // Use a stable fallback ID if the extra is somehow missing.
         val alarmId = intent.getIntExtra(ContestAlarmReceiver.EXTRA_ALARM_ID, 0)
             .takeIf { it != 0 } ?: FALLBACK_NOTIFICATION_ID
 
-        startForeground(alarmId, buildNotification(contestName, platform, alarmId))
+        startForeground(alarmId, buildNotification(contestName, platform, alarmId, url))
         startSoundAndVibration()
         handler.removeCallbacks(timeout)
         handler.postDelayed(timeout, ALARM_DURATION_MS)
@@ -67,24 +59,15 @@ class ContestAlarmService : Service() {
     override fun onDestroy() {
         handler.removeCallbacks(timeout)
         releasePlayer()
-        vibrator?.cancel()
+        cancelVibrator()
         super.onDestroy()
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    /**
-     * Starts the alarm tone in a looping [MediaPlayer] and kicks off a
-     * repeating vibration pattern.
-     *
-     * Using [MediaPlayer] instead of [android.media.Ringtone] is essential:
-     * Ringtone.play() fires the sound once and returns — on most devices the
-     * default alarm tone is ≤ 30 s, so the alarm went completely silent
-     * shortly after starting. [MediaPlayer.isLooping] keeps it going for the
-     * full five-minute window.
-     */
     private fun startSoundAndVibration() {
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
         try {
@@ -95,30 +78,79 @@ class ContestAlarmService : Service() {
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )
-                setDataSource(this@ContestAlarmService, uri)
-                isLooping = true   // ← the critical fix
+                setDataSource(this@ContestAlarmService, alarmUri)
+                isLooping = true
                 prepare()
                 start()
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            runCatching {
+                val fallbackUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                if (fallbackUri != null) {
+                    mediaPlayer = MediaPlayer().apply {
+                        setAudioAttributes(
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_ALARM)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build()
+                        )
+                        setDataSource(this@ContestAlarmService, fallbackUri)
+                        isLooping = true
+                        prepare()
+                        start()
+                    }
+                }
+            }
         }
 
-        // Repeating vibration: 700 ms on, 500 ms off (index 0 = repeat from start).
-        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        // Repeating vibration with ALARM attributes so DND doesn't suppress it
         val pattern = longArrayOf(0, 700, 500)
+        vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vm?.defaultVibrator ?: (getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+            val alarmAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            val effect = VibrationEffect.createWaveform(pattern, 0)
+            vibrator?.vibrate(effect, alarmAttributes)
         } else {
             @Suppress("DEPRECATION")
             vibrator?.vibrate(pattern, 0)
         }
     }
 
-    private fun buildNotification(contestName: String, platform: String, alarmId: Int) =
-        NotificationCompat.Builder(this, NotificationChannelManager.ALARM_CHANNEL_ID)
+    private fun cancelVibrator() {
+        vibrator?.cancel()
+    }
+
+    private fun buildNotification(contestName: String, platform: String, alarmId: Int, url: String): Notification {
+        val clickIntent = if (url.isNotBlank()) {
+            val normalizedUrl = if (url.startsWith("http://") || url.startsWith("https://")) url else "https://$url"
+            Intent(Intent.ACTION_VIEW, Uri.parse(normalizedUrl))
+        } else {
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+        }
+
+        val contentPendingIntent = PendingIntent.getActivity(
+            this,
+            alarmId,
+            clickIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        return NotificationCompat.Builder(this, NotificationChannelManager.ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("$platform contest starts in 5 minutes")
+            .setContentTitle("⏰ $platform contest starts in 5 minutes")
             .setContentText(contestName)
             .setStyle(
                 NotificationCompat.BigTextStyle()
@@ -127,8 +159,10 @@ class ContestAlarmService : Service() {
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setContentIntent(contentPendingIntent)
             .addAction(0, "Stop", stopPendingIntent(alarmId))
             .build()
+    }
 
     private fun stopPendingIntent(alarmId: Int): PendingIntent = PendingIntent.getService(
         this,
@@ -139,8 +173,7 @@ class ContestAlarmService : Service() {
 
     private fun stopAlarm() {
         releasePlayer()
-        vibrator?.cancel()
-        // stopForeground(boolean) was deprecated in API 33; use the int overload.
+        cancelVibrator()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {

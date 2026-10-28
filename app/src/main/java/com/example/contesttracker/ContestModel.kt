@@ -34,6 +34,28 @@ data class ContestModel(
      */
     val platform: Platform?
         get() = Platform.fromResourceId(resourceId)
+
+    @Transient
+    private var _cachedStartMillis: Long? = null
+
+    val startMillis: Long
+        get() {
+            if (_cachedStartMillis == null) {
+                _cachedStartMillis = ContestTimeUtils.startTimeMillis(start) ?: 0L
+            }
+            return _cachedStartMillis!!
+        }
+
+    @Transient
+    private var _cachedEndMillis: Long? = null
+
+    val endMillis: Long
+        get() {
+            if (_cachedEndMillis == null) {
+                _cachedEndMillis = startMillis + (durationSeconds * 1000L)
+            }
+            return _cachedEndMillis!!
+        }
 }
 
 enum class Platform(

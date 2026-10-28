@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.TypedValue
 import android.view.View
 import android.widget.ImageButton
 import android.widget.ProgressBar
@@ -30,7 +31,6 @@ import com.google.android.material.materialswitch.MaterialSwitch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import android.util.TypedValue
 
 class MainActivity : AppCompatActivity() {
 
@@ -60,10 +60,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var staleBanner: TextView
     private lateinit var alarmPermissionBanner: TextView
     private lateinit var batteryOptBanner: TextView
+    private lateinit var platformChipGroup: ChipGroup
 
-    // BUG-U3 fix: re-run applyFilters() every 60 s so the Live Now / Upcoming
-    // Today split corrects itself when a contest starts or ends mid-session,
-    // without waiting for the next API refresh.
+    // Re-run applyFilters() periodically to keep live / upcoming state current
     private val filterRefreshHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val filterRefreshRunnable = object : Runnable {
         override fun run() {
@@ -72,8 +71,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val selectedPlatforms = Platform.entries.toMutableSet()
+    private val selectedPlatforms = mutableSetOf<Platform>()
 
+    private fun loadSelectedPlatforms() {
+        val prefs = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+        selectedPlatforms.clear()
+        Platform.entries.forEach { platform ->
+            if (prefs.getBoolean("platform_${platform.name}", true)) {
+                selectedPlatforms.add(platform)
+            }
+        }
+    }
+
+    private fun syncHomeChips() {
+        if (!::platformChipGroup.isInitialized || platformChipGroup.childCount == 0) return
+        val allChip = platformChipGroup.getChildAt(0) as? Chip
+        allChip?.isChecked = (selectedPlatforms.size == Platform.entries.size)
+        for (i in 0 until Platform.entries.size) {
+            val platform = Platform.entries[i]
+            val chip = platformChipGroup.getChildAt(i + 1) as? Chip
+            chip?.isChecked = selectedPlatforms.contains(platform)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Read and apply theme preference before layout inflation
@@ -85,6 +104,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         try {
+            loadSelectedPlatforms()
             NotificationChannelManager.createNotificationChannel(this)
             checkNotificationPermission()
             setCurrentDate()
@@ -97,7 +117,6 @@ class MainActivity : AppCompatActivity() {
             setupSettingsUI()
             bindViewModel()
             
-            // Set quick theme toggle icon based on current UI configuration
             val currentNightMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
             val isDark = currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
             themeToggleButton.setImageResource(if (isDark) R.drawable.ic_sun else R.drawable.ic_theme_toggle)
@@ -111,20 +130,12 @@ class MainActivity : AppCompatActivity() {
             
             loadInitialData()
 
-            // ── Daily background alarm (BUG-N1 fix) ───────────────────────
-            // Ensures contest alarms stay current even when the app is not
-            // opened for several days. Safe to call repeatedly — uses
-            // FLAG_UPDATE_CURRENT so it never creates duplicate alarms.
+            // Daily background alarm
             DailyRefreshScheduler.schedule(this)
-            // ──────────────────────────────────────────────────────────────
 
-            // ── OTA Update System ──────────────────────────────────────────
-            // Handle install intent forwarded by DownloadCompleteReceiver
+            // OTA Update System
             handleInstallIntent(intent)
-            // Auto-check for updates at most once every 24 h (silent on error)
             UpdateManager.checkForUpdates(this)
-            // ──────────────────────────────────────────────────────────────
-
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -138,8 +149,6 @@ class MainActivity : AppCompatActivity() {
             liveAdapter?.startCountdown()
             upcomingAdapter?.startCountdown()
         }
-        // BUG-U3: start periodic filter refresh so live/upcoming split
-        // self-corrects every minute without waiting for the next API call.
         filterRefreshHandler.postDelayed(filterRefreshRunnable, FILTER_REFRESH_INTERVAL_MS)
     }
 
@@ -147,28 +156,17 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
         liveAdapter?.stopCountdown()
         upcomingAdapter?.stopCountdown()
-        // Stop the periodic refresh when app is not visible to avoid wasting resources.
         filterRefreshHandler.removeCallbacks(filterRefreshRunnable)
     }
 
-    /**
-     * Called every time the activity returns to the foreground — including
-     * when the user comes back from the Android exact-alarm permission screen.
-     *
-     * BUG-N3 fix: re-evaluates the alarm permission state so the banner
-     * disappears immediately after the user grants the permission, and alarms
-     * are rescheduled using exact timing right away.
-     */
     override fun onResume() {
         super.onResume()
         if (!::alarmPermissionBanner.isInitialized) return
 
-        val hadPermission = !alarmPermissionBanner.isVisible   // banner visible = no permission
+        val hadPermission = !alarmPermissionBanner.isVisible
         updateAlarmPermissionBanner()
         val hasPermissionNow = !alarmPermissionBanner.isVisible
 
-        // If exact alarm permission was just granted, immediately reschedule
-        // all alarms so they use exact timing (BUG-N3 fix).
         if (!hadPermission && hasPermissionNow) {
             val scheduler = NotificationScheduler(this)
             val contests = viewModel.contests.value
@@ -179,21 +177,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Re-check battery optimization banner on every resume so it
-        // dismisses automatically when the user grants exemption (BUG-N4 fix).
         if (::batteryOptBanner.isInitialized) {
             updateBatteryOptBanner()
         }
     }
 
-    /**
-     * Shows or hides the alarm permission banner based on the current
-     * SCHEDULE_EXACT_ALARM grant state. Wires the tap action to open
-     * the system permission screen. Safe to call multiple times.
-     */
     private fun updateAlarmPermissionBanner() {
-        // BUG-U2 fix: if the user has globally disabled notifications there is
-        // no point asking for alarm permission — hide the banner immediately.
         val notificationsEnabled = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
             .getBoolean("enable_notifications", true)
         if (!notificationsEnabled) {
@@ -222,15 +211,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Shows or hides the battery optimization banner.
-     * On many OEM devices (Samsung, Xiaomi, OnePlus etc.), Android's battery
-     * saver can kill BroadcastReceivers before they fire. Requesting exemption
-     * from battery optimization prevents this (BUG-N4 fix).
-     */
     private fun updateBatteryOptBanner() {
-        // BUG-U2 fix: no point prompting for battery opt exemption if the
-        // user has disabled notifications globally.
         val notificationsEnabled = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
             .getBoolean("enable_notifications", true)
         if (!notificationsEnabled) {
@@ -257,24 +238,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Called when MainActivity is already at the top of the stack and a new
-     * intent arrives (e.g. from DownloadCompleteReceiver after a download).
-     */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleInstallIntent(intent)
     }
 
-    /**
-     * If the launching Intent carries [ApkDownloader.EXTRA_INSTALL_APK_PATH],
-     * immediately prompt the system package installer.
-     */
     private fun handleInstallIntent(intent: Intent?) {
         val apkPath = intent?.getStringExtra(ApkDownloader.EXTRA_INSTALL_APK_PATH)
             ?: return
-        // Remove the extra so a configuration change doesn't re-trigger install
         intent.removeExtra(ApkDownloader.EXTRA_INSTALL_APK_PATH)
         val apkFile = File(apkPath)
         if (apkFile.exists()) {
@@ -292,7 +264,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkNotificationPermission() {
-        // ── POST_NOTIFICATIONS (Android 13+) ─────────────────────────────────
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this,
@@ -342,12 +313,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupAdapters() {
-        liveAdapter     = ContestAdapter { url -> openContest(url) }
-        upcomingAdapter = ContestAdapter { url -> openContest(url) }
-        // Schedule tab: read-only calendar view, no bell toggles
-        scheduleAdapter  = ScheduleAdapter(showReminderToggle = false, onContestClick = { url -> openContest(url) })
-        // Reminders tab: per-contest bell toggle enabled
-        remindersAdapter = ScheduleAdapter(showReminderToggle = true, onContestClick = { url -> openContest(url) })
+        val reminderToggleHandler: (ContestModel, Boolean) -> Unit = { contest, enabled ->
+            onReminderToggled(contest, enabled)
+        }
+
+        liveAdapter = ContestAdapter(
+            onOpenContest = { url -> openContest(url) },
+            onReminderToggle = reminderToggleHandler
+        )
+        upcomingAdapter = ContestAdapter(
+            onOpenContest = { url -> openContest(url) },
+            onReminderToggle = reminderToggleHandler
+        )
+        // Both Schedule and Reminders tabs have reminder toggles enabled
+        scheduleAdapter = ScheduleAdapter(
+            showReminderToggle = true,
+            onContestClick = { url -> openContest(url) },
+            onReminderToggle = reminderToggleHandler
+        )
+        remindersAdapter = ScheduleAdapter(
+            showReminderToggle = true,
+            onContestClick = { url -> openContest(url) },
+            onReminderToggle = reminderToggleHandler
+        )
+    }
+
+    private fun onReminderToggled(contest: ContestModel, enabled: Boolean) {
+        ReminderPreferences.setEnabled(this, contest.id, enabled)
+        val scheduler = NotificationScheduler(this)
+        val contests = viewModel.contests.value?.takeIf { it.isNotEmpty() } ?: scheduler.getCachedContests()
+        if (contests.isNotEmpty()) {
+            scheduler.scheduleAll(contests)
+        }
+        liveAdapter?.notifyDataSetChanged()
+        upcomingAdapter?.notifyDataSetChanged()
+        scheduleAdapter?.refreshItems()
+        remindersAdapter?.refreshItems()
     }
 
     private fun setupScheduleUI() {
@@ -408,14 +409,15 @@ class MainActivity : AppCompatActivity() {
         val chipText   = ContextCompat.getColorStateList(this, R.color.selector_chip_text)
         val chipStroke = ContextCompat.getColorStateList(this, R.color.selector_chip_stroke)
 
-        val platformChipGroup: ChipGroup = findViewById(R.id.platformChipGroup)
+        platformChipGroup = findViewById(R.id.platformChipGroup)
+        platformChipGroup.removeAllViews()
         val strokeWidthPx  = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
         val cornerRadiusPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, resources.displayMetrics)
 
         val allChip = Chip(this).apply {
             text = "All"
             isCheckable = true
-            isChecked = true
+            isChecked = selectedPlatforms.size == Platform.entries.size
             chipBackgroundColor = chipBg
             setTextColor(chipText)
             chipStrokeColor = chipStroke
@@ -429,7 +431,7 @@ class MainActivity : AppCompatActivity() {
                     for (i in 1 until platformChipGroup.childCount) {
                         (platformChipGroup.getChildAt(i) as Chip).isChecked = true
                     }
-                } else {
+                } else if (selectedPlatforms.size == Platform.entries.size) {
                     selectedPlatforms.clear()
                     for (i in 1 until platformChipGroup.childCount) {
                         (platformChipGroup.getChildAt(i) as Chip).isChecked = false
@@ -444,7 +446,7 @@ class MainActivity : AppCompatActivity() {
             val chip = Chip(this).apply {
                 text = platform.displayName
                 isCheckable = true
-                isChecked = true
+                isChecked = selectedPlatforms.contains(platform)
                 chipBackgroundColor = chipBg
                 setTextColor(chipText)
                 chipStrokeColor = chipStroke
@@ -528,14 +530,21 @@ class MainActivity : AppCompatActivity() {
                 edit.putBoolean("platform_${p.name}", sw.isChecked)
             }
             edit.apply()
+
+            // Update selectedPlatforms and synchronize Home chips with new settings
+            selectedPlatforms.clear()
+            switches.forEach { (p, sw) ->
+                if (sw.isChecked) selectedPlatforms.add(p)
+            }
+            syncHomeChips()
             
             val scheduler = NotificationScheduler(this)
             if (!enableNotifications) {
                 scheduler.cancelAll()
-                // Also clear per-contest reminder prefs so re-enabling restores
-                // the default opt-in state (all contests reminded).
                 ReminderPreferences.clearAll(this)
+                DailyRefreshScheduler.cancel(this)
             } else {
+                DailyRefreshScheduler.schedule(this)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     val alarmManager = getSystemService(AlarmManager::class.java)
                     if (!alarmManager.canScheduleExactAlarms()) {
@@ -546,8 +555,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                // Immediately reschedule from the in-memory list, or fall back to the
-                // on-disk cache so that alarms are set even if the upcoming API call fails.
                 val contestsToSchedule = viewModel.contests.value
                     ?.takeIf { it.isNotEmpty() }
                     ?: scheduler.getCachedContests()
@@ -558,25 +565,16 @@ class MainActivity : AppCompatActivity() {
 
             applyAppTheme(selectedTheme)
             Toast.makeText(this, "Settings Saved", Toast.LENGTH_SHORT).show()
+            applyFilters()
             viewModel.loadContests()
         }
 
-        // ── App Updates section ────────────────────────────────────────────
         setupUpdateSettingsUI()
 
-        // BUG-Q4 fix: the version string was hardcoded to "Version 1.0.0" in
-        // strings.xml. Read the actual installed version from BuildConfig so
-        // the Settings screen always shows the real current version.
         settingsLayout.findViewById<android.widget.TextView>(R.id.versionInfoText)
             ?.text = "Version ${BuildConfig.VERSION_NAME}"
     }
 
-    /**
-     * Wires the "App Updates" card in the Settings screen:
-     *  - Displays the installed version and last-check time.
-     *  - Handles Stable / Beta channel selection.
-     *  - Handles the "Check for Updates" button.
-     */
     private fun setupUpdateSettingsUI() {
         val updatePrefs = UpdatePreferences(this)
 
@@ -587,22 +585,18 @@ class MainActivity : AppCompatActivity() {
         val chipBeta          = settingsLayout.findViewById<Chip>(R.id.chipBeta)
         val chipStable        = settingsLayout.findViewById<Chip>(R.id.chipStable)
 
-        // Show installed version
         tvCurrentVersion.text = try {
             "v${packageManager.getPackageInfo(packageName, 0).versionName}"
         } catch (e: Exception) { "v1.0" }
 
-        // Show last-check time
         tvLastChecked.text = updatePrefs.getFormattedLastCheckTime()
 
-        // Restore channel selection
         if (updatePrefs.updateChannel == UpdatePreferences.CHANNEL_BETA) {
             chipBeta.isChecked = true
         } else {
             chipStable.isChecked = true
         }
 
-        // Save channel when user switches chip
         chipGroupChannel.setOnCheckedStateChangeListener { _, checkedIds ->
             updatePrefs.updateChannel = when {
                 checkedIds.contains(R.id.chipBeta) -> UpdatePreferences.CHANNEL_BETA
@@ -610,7 +604,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // "Check for Updates" button — force-checks ignoring the 24 h cooldown
         btnCheckUpdates.setOnClickListener {
             btnCheckUpdates.isEnabled = false
             btnCheckUpdates.text = "Checking\u2026"
@@ -635,8 +628,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Show a tappable stale-data banner whenever cached data is displayed
-        // instead of live data, so the user is never silently shown stale content.
         viewModel.isUsingCachedData.observe(this) { isStale ->
             staleBanner.isVisible = isStale
             if (isStale) {
@@ -648,13 +639,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Show an alarm permission banner on Android 12+ when SCHEDULE_EXACT_ALARM
-        // is not granted. Extracted to updateAlarmPermissionBanner() so it can also
-        // be called from onResume() when returning from the permission screen (BUG-N3).
         updateAlarmPermissionBanner()
-
-        // Show a battery optimization banner if Android can kill the notification
-        // receiver before it fires — common on Samsung, Xiaomi, OnePlus (BUG-N4).
         updateBatteryOptBanner()
     }
 
@@ -667,23 +652,17 @@ class MainActivity : AppCompatActivity() {
         val filteredByPlatform = contests?.filter { it.platform?.let { p -> p in selectedPlatforms } == true } ?: emptyList()
         val now = System.currentTimeMillis()
 
-        // Restrict home tab to today's contests only.
-        // BUG-C2 fix: create the formatter once outside the loop instead of
-        // allocating a new SimpleDateFormat instance for every contest.
-        val dayFmt   = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
-        val todayKey = dayFmt.format(java.util.Date())
-        val filteredByDayAndPlatform = filteredByPlatform.filter {
-            val startMillis = ContestTimeUtils.startTimeMillis(it.start) ?: 0
-            dayFmt.format(java.util.Date(startMillis)) == todayKey
+        val dayFmt   = SimpleDateFormat("yyyyMMdd", Locale.US)
+        val todayKey = dayFmt.format(Date(now))
+
+        // Live Now: all active contests (including any started yesterday before midnight)
+        val running = filteredByPlatform.filter {
+            now in it.startMillis..it.endMillis
         }
 
-        val running = filteredByDayAndPlatform.filter {
-            val start = ContestTimeUtils.startTimeMillis(it.start) ?: 0
-            val end = start + (it.durationSeconds * 1000)
-            now in start..end
-        }
-        val upcoming = filteredByDayAndPlatform.filter {
-            (ContestTimeUtils.startTimeMillis(it.start) ?: 0) > now
+        // Upcoming today: contests scheduled for later today
+        val upcoming = filteredByPlatform.filter {
+            it.startMillis > now && dayFmt.format(Date(it.startMillis)) == todayKey
         }
 
         lAdapter.submitList(running)
@@ -697,43 +676,39 @@ class MainActivity : AppCompatActivity() {
             uAdapter.stopCountdown()
         }
 
-        // ── Home empty state logic ────────────────────────────────────────────────
-        val hasLive     = running.isNotEmpty()
+        // Home empty state logic
+        val hasLive = running.isNotEmpty()
         val hasUpcoming = upcoming.isNotEmpty()
         val hasVisibleContests = hasLive || hasUpcoming
 
-        // Live Now section — only visible when contests are actually running right now
         liveNowLabel.isVisible = hasLive
         homeLayout.findViewById<View>(R.id.liveRecyclerView).isVisible = hasLive
 
-        // Upcoming section — visible when there are upcoming contests today
         upcomingLabel.isVisible = hasUpcoming
         homeLayout.findViewById<View>(R.id.upcomingRecyclerView).isVisible = hasUpcoming
 
         if (!hasVisibleContests) {
             homeEmptyState.isVisible = true
-            if (filteredByDayAndPlatform.isEmpty()) {
-                // Nothing scheduled today for the selected platforms
-                homeEmptyTitle.text   = getString(R.string.home_empty_no_contests_title)
+            val anyContestsToday = filteredByPlatform.any {
+                dayFmt.format(Date(it.startMillis)) == todayKey
+            }
+            if (!anyContestsToday) {
+                homeEmptyTitle.text = getString(R.string.home_empty_no_contests_title)
                 homeEmptySubtitle.text = getString(R.string.home_empty_no_contests_subtitle)
             } else {
-                // There were contests today but they've all ended
-                homeEmptyTitle.text   = getString(R.string.home_empty_all_done_title)
+                homeEmptyTitle.text = getString(R.string.home_empty_all_done_title)
                 homeEmptySubtitle.text = getString(R.string.home_empty_all_done_subtitle)
             }
         } else {
             homeEmptyState.isVisible = false
         }
 
-        // ──────────────────────────────────────────────────────────────
-
+        // Schedule tab: all contests for the selected platforms
         sAdapter.submitContests(filteredByPlatform)
         emptyState.isVisible = filteredByPlatform.isEmpty()
         
-        val remindersList = filteredByDayAndPlatform.filter {
-            val startMillis = ContestTimeUtils.startTimeMillis(it.start) ?: 0
-            startMillis > now
-        }
+        // Reminders tab: all upcoming contests across all dates with full alarm control!
+        val remindersList = filteredByPlatform.filter { it.startMillis > now }
         rAdapter.submitContests(remindersList)
         
         val areNotificationsEnabled = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
@@ -745,13 +720,12 @@ class MainActivity : AppCompatActivity() {
             remindersLayout.findViewById<TextView>(R.id.remindersEmptySubtitle)?.text = getString(R.string.reminders_empty_no_notif_subtitle)
         } else if (remindersList.isEmpty()) {
             remindersEmptyState.isVisible = true
-            remindersLayout.findViewById<TextView>(R.id.remindersEmptyTitle)?.text = getString(R.string.reminders_empty_title)
+            remindersLayout.findViewById<TextView>(R.id.remindersEmptyTitle)?.text = getString(R.string.no_contests_scheduled)
             remindersLayout.findViewById<TextView>(R.id.remindersEmptySubtitle)?.text = getString(R.string.reminders_empty_subtitle)
         } else {
             remindersEmptyState.isVisible = false
         }
     }
-
 
     private fun loadInitialData() {
         viewModel.loadContests()
@@ -759,7 +733,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openContest(url: String) {
         runCatching {
-            val normalizedUrl = if (url.startsWith("http")) url else "https://$url"
+            val normalizedUrl = if (url.startsWith("http://") || url.startsWith("https://")) url else "https://$url"
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(normalizedUrl)))
         }.onFailure {
             Toast.makeText(this, getString(R.string.error_browser), Toast.LENGTH_SHORT).show()
@@ -767,7 +741,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        /** How often (ms) to re-run applyFilters() to keep live/upcoming split current. */
         private const val FILTER_REFRESH_INTERVAL_MS = 60_000L
     }
 }

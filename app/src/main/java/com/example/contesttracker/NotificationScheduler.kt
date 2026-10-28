@@ -55,9 +55,8 @@ class NotificationScheduler(private val context: Context) {
         // ─────────────────────────────────────────────────────────────────────
 
         contests.forEach { contest ->
-            val startMillis = ContestTimeUtils.startTimeMillis(contest.start) ?: return@forEach
-
-            if (startMillis <= now) return@forEach
+            val startMillis = contest.startMillis
+            if (startMillis <= 0 || startMillis <= now) return@forEach
 
             // getCachedContests() deserialises from disk; the repository filter does not
             // re-run on the cached path, so guard here to be safe.
@@ -147,16 +146,18 @@ class NotificationScheduler(private val context: Context) {
                 if (alarmManager.canScheduleExactAlarms()) {
                     alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
                 } else {
-                    // Fallback to non-exact
                     alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
                 }
             } else {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
-            // Last resort fallback
-            alarmManager.set(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+            Log.w(TAG, "Failed to schedule exact notification alarm, falling back to inexact", e)
+            try {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+            } catch (fallbackEx: Exception) {
+                Log.e(TAG, "Inexact notification fallback also failed", fallbackEx)
+            }
         }
     }
 
@@ -165,6 +166,7 @@ class NotificationScheduler(private val context: Context) {
             putExtra(ContestAlarmReceiver.EXTRA_CONTEST_NAME, contest.name)
             putExtra(ContestAlarmReceiver.EXTRA_PLATFORM, contest.platform?.displayName ?: "Contest")
             putExtra(ContestAlarmReceiver.EXTRA_ALARM_ID, alarmId)
+            putExtra(ContestAlarmReceiver.EXTRA_URL, contest.url ?: "")
         }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -183,8 +185,12 @@ class NotificationScheduler(private val context: Context) {
                 alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Unable to schedule contest alarm", e)
-            alarmManager.set(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+            Log.w(TAG, "Unable to schedule exact contest alarm, falling back to inexact", e)
+            try {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+            } catch (fallbackEx: Exception) {
+                Log.e(TAG, "Inexact alarm fallback also failed", fallbackEx)
+            }
         }
     }
 

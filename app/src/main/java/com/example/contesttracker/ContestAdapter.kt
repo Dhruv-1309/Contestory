@@ -1,11 +1,17 @@
 package com.example.contesttracker
 
+import android.app.AlarmManager
+import android.content.Intent
 import android.content.res.ColorStateList
+import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -19,7 +25,8 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 
 class ContestAdapter(
-    private val onOpenContest: (String) -> Unit
+    private val onOpenContest: (String) -> Unit,
+    private val onReminderToggle: ((ContestModel, Boolean) -> Unit)? = null
 ) : ListAdapter<ContestModel, ContestAdapter.ContestViewHolder>(ContestDiffCallback()) {
 
     private val countdownHandler = Handler(Looper.getMainLooper())
@@ -52,17 +59,9 @@ class ContestAdapter(
         super.submitList(list) {
             if (isCountdownActive && currentList.isEmpty()) {
                 stopCountdown()
-            } else if (!isCountdownActive && currentList.isNotEmpty() && isVisibleContext()) {
-                // If the adapter is used in a visible context, start it.
-                // We rely on MainActivity to explicitly call startCountdown() when shown,
-                // but if we are already shown and just received data, we should start it.
-                // We will just let MainActivity explicitly manage the start/stop state.
-                // However, we can automatically start if it was active or MainActivity manages it.
             }
         }
     }
-
-    private fun isVisibleContext() = isCountdownActive // simplified, rely on external state
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ContestViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -92,6 +91,7 @@ class ContestAdapter(
         private val platformBadgeText: TextView = itemView.findViewById(R.id.platformBadgeText)
         private val platformLogo: ImageView = itemView.findViewById(R.id.platformLogo)
         private val liveBadge: View = itemView.findViewById(R.id.liveBadge)
+        private val contestBellButton: ImageButton = itemView.findViewById(R.id.contestBellButton)
         private val contestNameText: TextView = itemView.findViewById(R.id.contestNameText)
         private val durationText: TextView = itemView.findViewById(R.id.durationText)
         private val timerIcon: ImageView = itemView.findViewById(R.id.timerIcon)
@@ -123,22 +123,51 @@ class ContestAdapter(
             contestNameText.text = contest.name
             durationText.text = ContestTimeUtils.formatDuration(contest.durationSeconds)
             
-            val startMillis = ContestTimeUtils.startTimeMillis(contest.start) ?: 0
-            val endMillis = startMillis + (contest.durationSeconds * 1000)
+            val startMillis = contest.startMillis
+            val endMillis = contest.endMillis
             val now = System.currentTimeMillis()
             
-            liveBadge.isVisible = now in startMillis..endMillis
+            val isLive = now in startMillis..endMillis
+            liveBadge.isVisible = isLive
             
-            val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
+            // Bell toggle on Home card for upcoming contests
+            if (now < startMillis) {
+                contestBellButton.isVisible = true
+                val isReminderEnabled = ReminderPreferences.isEnabled(context, contest.id)
+                contestBellButton.setImageResource(
+                    if (isReminderEnabled) R.drawable.ic_bell_on else R.drawable.ic_bell_off
+                )
+                contestBellButton.setOnClickListener {
+                    val newEnabled = !ReminderPreferences.isEnabled(context, contest.id)
+                    if (newEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        val alarmManager = context.getSystemService(AlarmManager::class.java)
+                        if (alarmManager != null && !alarmManager.canScheduleExactAlarms()) {
+                            val intent = Intent(
+                                Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                Uri.parse("package:${context.packageName}")
+                            )
+                            context.startActivity(intent)
+                            return@setOnClickListener
+                        }
+                    }
+                    ReminderPreferences.setEnabled(context, contest.id, newEnabled)
+                    contestBellButton.setImageResource(
+                        if (newEnabled) R.drawable.ic_bell_on else R.drawable.ic_bell_off
+                    )
+                    onReminderToggle?.invoke(contest, newEnabled)
+                }
+            } else {
+                contestBellButton.isVisible = false
+                contestBellButton.setOnClickListener(null)
+            }
+
             val targetTime = if (now < startMillis) startMillis else endMillis
-            val formattedTime = sdf.format(Date(targetTime))
+            val formattedTime = TIME_RANGE_FMT.format(Date(targetTime))
             val timeLabelRes = if (now < startMillis) R.string.starts_at else R.string.ends_at
             timeRangeText.text = context.getString(timeLabelRes, formattedTime)
             
             updateCountdown(contest)
 
-            // BUG-U4 fix: hide the button when there is no URL so the user
-            // never sees a tappable button that silently does nothing.
             if (contest.url != null) {
                 openButton.isVisible = true
                 openButton.setOnClickListener { onOpenContest(contest.url) }
@@ -149,9 +178,16 @@ class ContestAdapter(
         }
 
         fun updateCountdown(contest: ContestModel) {
-            val startMillis = ContestTimeUtils.startTimeMillis(contest.start) ?: return
+            val startMillis = contest.startMillis
+            val endMillis = contest.endMillis
             val now = System.currentTimeMillis()
-            val diff = (startMillis - now).coerceAtLeast(0)
+            
+            // Live contests count down to contest end time; upcoming contests count down to start time!
+            val diff = when {
+                now < startMillis -> (startMillis - now).coerceAtLeast(0)
+                now in startMillis..endMillis -> (endMillis - now).coerceAtLeast(0)
+                else -> 0L
+            }
             
             val h = TimeUnit.MILLISECONDS.toHours(diff)
             val m = TimeUnit.MILLISECONDS.toMinutes(diff) % 60
@@ -167,6 +203,7 @@ class ContestAdapter(
 
     companion object {
         private const val COUNTDOWN_PAYLOAD = "countdown"
+        private val TIME_RANGE_FMT = SimpleDateFormat("h:mm a", Locale.getDefault())
     }
 }
 

@@ -15,18 +15,25 @@ object ContestTimeUtils {
         "yyyy-MM-dd'T'HH:mm:ss"
     )
 
-    fun startTimeMillis(value: String): Long? {
-        return utcPatterns.firstNotNullOfOrNull { pattern ->
-            runCatching {
-                val parser = SimpleDateFormat(pattern, Locale.US).apply {
-                    isLenient = false
-                    timeZone = TimeZone.getTimeZone("UTC")
-                }
-                val position = ParsePosition(0)
-                val date = parser.parse(value, position)
-                if (position.index == value.length) date?.time else null
-            }.getOrNull()
+    private val threadLocalParsers = ThreadLocal.withInitial {
+        utcPatterns.map { pattern ->
+            SimpleDateFormat(pattern, Locale.US).apply {
+                isLenient = false
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
         }
+    }
+
+    fun startTimeMillis(value: String): Long? {
+        val parsers = threadLocalParsers.get() ?: return null
+        for (parser in parsers) {
+            val position = ParsePosition(0)
+            val date = parser.parse(value, position)
+            if (position.index == value.length && date != null) {
+                return date.time
+            }
+        }
+        return null
     }
 
     fun formatLocalDateTime(value: String): String {

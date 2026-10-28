@@ -13,7 +13,7 @@
     <string name="version_info">Version 1.0.0</string>
     <string name="dev_by">Designed &amp; developed by</string>
     <string name="dev_name_dhruv">Dhruv B</string>
-    <string name="copyright">© 2026 Dhruv B. All rights reserved.</string>
+    <string name="copyright">Â© 2026 Dhruv B. All rights reserved.</string>
 
     <!-- OTA Update strings -->
     <string name="update_section_title">APP UPDATES</string>
@@ -27,11 +27,11 @@
     <!-- Home screen empty state strings -->
     <string name="home_empty_no_contests_title">No contests today</string>
     <string name="home_empty_no_contests_subtitle">There are no contests scheduled for today on the selected platforms. Check back tomorrow!</string>
-    <string name="home_empty_all_done_title">All done for today! 🎉</string>
+    <string name="home_empty_all_done_title">All done for today! ðŸŽ‰</string>
     <string name="home_empty_all_done_subtitle">All of today\'s contests have ended. Come back tomorrow for more.</string>
 
     <!-- Shown when displaying cached data after a network failure -->
-    <string name="stale_data_banner">⚠️ Offline — showing cached data. Tap to refresh.</string>
+    <string name="stale_data_banner">âš ï¸ Offline â€” showing cached data. Tap to refresh.</string>
 
     <!-- Dynamic strings for adapters -->
     <string name="today">TODAY</string>
@@ -53,8 +53,8 @@
     <string name="error_startup">Something went wrong during startup. Please restart the app.</string>
     <string name="error_browser">Cannot open browser</string>
 
-    <string name="reminders_empty_title">No contests today</string>
-    <string name="reminders_empty_subtitle">There are no upcoming contests today to set reminders for.</string>
+    <string name="reminders_empty_title">No upcoming contests</string>
+    <string name="reminders_empty_subtitle">There are no upcoming contests on your selected platforms to set reminders for.</string>
     <string name="reminders_empty_no_notif_title">Notifications are off</string>
     <string name="reminders_empty_no_notif_subtitle">Enable notifications in Settings to manage contest reminders.</string>
 </resources>

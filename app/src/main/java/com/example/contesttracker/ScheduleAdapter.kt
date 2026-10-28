@@ -1,5 +1,6 @@
 package com.example.contesttracker
 
+import android.os.Build
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,12 +18,13 @@ import java.util.*
  *
  * @param showReminderToggle When true, each contest row displays a bell
  *   [ImageButton] that lets the user opt a contest in or out of reminders.
- *   When false (default, Schedule tab), the bell is [View.GONE] and the row
- *   behaves exactly as before this feature was added.
+ * @param onContestClick Invoked when a contest row is tapped.
+ * @param onReminderToggle Invoked when the user toggles a contest's reminder bell.
  */
 class ScheduleAdapter(
-    private val showReminderToggle: Boolean = false,
-    private val onContestClick: ((String) -> Unit)? = null
+    private val showReminderToggle: Boolean = true,
+    private val onContestClick: ((String) -> Unit)? = null,
+    private val onReminderToggle: ((ContestModel, Boolean) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<ScheduleItem>()
@@ -39,14 +41,14 @@ class ScheduleAdapter(
         updateItems()
     }
 
+    fun refreshItems() {
+        notifyDataSetChanged()
+    }
+
     private fun updateItems() {
-        // Build the new item list first.
         val newItems = mutableListOf<ScheduleItem>()
-        // BUG-C3 fix: use the cached formatter from the companion object instead
-        // of allocating a new SimpleDateFormat instance for every contest.
         val groups = allContests.groupBy { contest ->
-            val millis = ContestTimeUtils.startTimeMillis(contest.start) ?: 0
-            DATE_KEY_FMT.format(Date(millis))
+            DATE_KEY_FMT.format(Date(contest.startMillis))
         }
 
         groups.toSortedMap().forEach { (dateKey, contestsInGroup) ->
@@ -57,8 +59,6 @@ class ScheduleAdapter(
             }
         }
 
-        // BUG-C4 fix: use DiffUtil instead of notifyDataSetChanged() so only
-        // changed rows are redrawn, giving smooth animations and better performance.
         val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
             override fun getOldListSize() = items.size
             override fun getNewListSize() = newItems.size
@@ -79,16 +79,20 @@ class ScheduleAdapter(
     }
 
     private fun getDisplayDate(context: android.content.Context, dateKey: String): String {
-        // BUG-C3 fix: reuse the companion-object formatter.
-        // BUG-Q3 fix: use Calendar to add 1 day instead of +86_400_000 ms which
-        // is wrong during DST transitions (a day can be 23 or 25 hours).
         val today = DATE_KEY_FMT.format(Date())
-        val cal = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, 1) }
+        val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
         val tomorrow = DATE_KEY_FMT.format(cal.time)
         return when (dateKey) {
             today    -> context.getString(R.string.today)
             tomorrow -> context.getString(R.string.tomorrow)
-            else     -> dateKey.uppercase()
+            else     -> {
+                try {
+                    val parsed = DATE_KEY_FMT.parse(dateKey)
+                    if (parsed != null) DISPLAY_DATE_FMT.format(parsed).uppercase() else dateKey.uppercase()
+                } catch (_: Exception) {
+                    dateKey.uppercase()
+                }
+            }
         }
     }
 
@@ -132,7 +136,6 @@ class ScheduleAdapter(
             val displayText = getDisplayDate(context, header.dateKey)
             title.text = displayText
             
-            // Expose collapse state for accessibility
             itemView.contentDescription = displayText
             androidx.core.view.ViewCompat.setStateDescription(
                 itemView,
@@ -156,20 +159,14 @@ class ScheduleAdapter(
 
         fun bind(contest: ContestModel) {
             name.text = contest.name
-            // Repository filters unknowns; guard here for the cached-data path.
             val p = contest.platform ?: return
             platform.text = p.displayName
             logo.imageTintList = null
             logo.setImageResource(p.logoResId)
 
-            val startMillis = ContestTimeUtils.startTimeMillis(contest.start) ?: 0
-            time.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(startMillis))
+            val startMillis = contest.startMillis
+            time.text = TIME_FMT.format(Date(startMillis))
 
-            // BUG-U1 fix: only show the bell toggle for contests that haven't
-            // started yet. Once a contest is live or has ended, all notification
-            // windows (1h, 15m, start) are in the past — toggling the bell does
-            // nothing because scheduleAll() skips contests where startMillis <= now.
-            // Hiding it avoids a confusing non-functional button.
             val hasStarted = System.currentTimeMillis() >= startMillis
             if (showReminderToggle && !hasStarted) {
                 bellButton.isVisible = true
@@ -178,8 +175,6 @@ class ScheduleAdapter(
                 bellButton.isVisible = false
             }
 
-            // BUG-U4 fix: remove click listener when URL is absent so the row
-            // doesn't provide tap feedback for an action that does nothing.
             if (contest.url != null) {
                 itemView.setOnClickListener { onContestClick?.invoke(contest.url) }
             } else {
@@ -193,33 +188,23 @@ class ScheduleAdapter(
             updateBellIcon(enabled)
 
             bellButton.setOnClickListener {
-                val context = itemView.context
                 val newEnabled = !ReminderPreferences.isEnabled(context, contest.id)
                 
-                if (newEnabled) {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                        val alarmManager = context.getSystemService(android.app.AlarmManager::class.java)
-                        if (alarmManager != null && !alarmManager.canScheduleExactAlarms()) {
-                            val intent = android.content.Intent(
-                                android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                                android.net.Uri.parse("package:${context.packageName}")
-                            )
-                            context.startActivity(intent)
-                            return@setOnClickListener // Let the user grant permission before saving
-                        }
+                if (newEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val alarmManager = context.getSystemService(android.app.AlarmManager::class.java)
+                    if (alarmManager != null && !alarmManager.canScheduleExactAlarms()) {
+                        val intent = android.content.Intent(
+                            android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            android.net.Uri.parse("package:${context.packageName}")
+                        )
+                        context.startActivity(intent)
+                        return@setOnClickListener
                     }
                 }
 
                 ReminderPreferences.setEnabled(context, contest.id, newEnabled)
                 updateBellIcon(newEnabled)
-
-                // Immediately reschedule so the alarm change takes effect without
-                // waiting for the next API refresh or app restart.
-                val scheduler = NotificationScheduler(context)
-                val contests  = scheduler.getCachedContests()
-                if (contests.isNotEmpty()) {
-                    scheduler.scheduleAll(contests)
-                }
+                onReminderToggle?.invoke(contest, newEnabled)
             }
         }
 
@@ -234,10 +219,8 @@ class ScheduleAdapter(
         private const val VIEW_TYPE_HEADER  = 0
         private const val VIEW_TYPE_CONTEST = 1
 
-        // BUG-C3 fix: shared formatter avoids creating a new SimpleDateFormat
-        // instance for every contest in updateItems() and getDisplayDate().
-        // SimpleDateFormat is not thread-safe, but ScheduleAdapter runs entirely
-        // on the main thread so this is safe to share as a class-level instance.
-        private val DATE_KEY_FMT = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        private val DATE_KEY_FMT = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        private val DISPLAY_DATE_FMT = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
+        private val TIME_FMT = SimpleDateFormat("HH:mm", Locale.getDefault())
     }
 }

@@ -17,11 +17,19 @@ class NotificationReceiver : BroadcastReceiver() {
         val body = intent.getStringExtra("body") ?: ""
         val notificationId = intent.getIntOf("notification_id", 0)
 
-        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        val clickIntent = if (url.isNotBlank()) {
+            val normalizedUrl = if (url.startsWith("http://") || url.startsWith("https://")) url else "https://$url"
+            Intent(Intent.ACTION_VIEW, Uri.parse(normalizedUrl))
+        } else {
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+        }
+
         val pendingIntent = PendingIntent.getActivity(
             context, 
             notificationId, 
-            browserIntent, 
+            clickIntent, 
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
@@ -29,13 +37,14 @@ class NotificationReceiver : BroadcastReceiver() {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("$platform contest starting soon!")
             .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setColor(ContextCompat.getColor(context, R.color.accent_purple))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, builder.build())
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        notificationManager?.notify(notificationId, builder.build())
     }
 
     private fun Intent.getIntOf(key: String, defaultValue: Int): Int {
