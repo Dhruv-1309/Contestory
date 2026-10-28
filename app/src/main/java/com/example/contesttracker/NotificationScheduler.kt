@@ -62,7 +62,7 @@ class NotificationScheduler(private val context: Context) {
             // re-run on the cached path, so guard here to be safe.
             val platform = contest.platform ?: return@forEach
 
-            if (!prefs.getBoolean("platform_${platform.name}", true)) {
+            if (!PlatformPreferences.isPlatformEnabled(prefs, platform)) {
                 cancelForContest(contest)
                 return@forEach
             }

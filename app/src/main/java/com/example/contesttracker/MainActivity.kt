@@ -71,26 +71,65 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var isSyncingPlatforms = false
     private val selectedPlatforms = mutableSetOf<Platform>()
+    private val platformChips = mutableMapOf<Platform, Chip>()
+    private var allChip: Chip? = null
+    private val platformSwitches = mutableMapOf<Platform, MaterialSwitch>()
 
     private fun loadSelectedPlatforms() {
-        val prefs = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
         selectedPlatforms.clear()
-        Platform.entries.forEach { platform ->
-            if (prefs.getBoolean("platform_${platform.name}", true)) {
-                selectedPlatforms.add(platform)
+        selectedPlatforms.addAll(PlatformPreferences.getSelectedPlatforms(this))
+    }
+
+    private fun syncChipsAndSwitches() {
+        isSyncingPlatforms = true
+        try {
+            val allSelected = PlatformPreferences.areAllPlatformsSelected(selectedPlatforms)
+            allChip?.isChecked = allSelected
+            Platform.entries.forEach { platform ->
+                val isSelected = selectedPlatforms.contains(platform)
+                platformChips[platform]?.isChecked = isSelected
+                platformSwitches[platform]?.isChecked = isSelected
             }
+        } finally {
+            isSyncingPlatforms = false
         }
     }
 
-    private fun syncHomeChips() {
-        if (!::platformChipGroup.isInitialized || platformChipGroup.childCount == 0) return
-        val allChip = platformChipGroup.getChildAt(0) as? Chip
-        allChip?.isChecked = (selectedPlatforms.size == Platform.entries.size)
-        for (i in 0 until Platform.entries.size) {
-            val platform = Platform.entries[i]
-            val chip = platformChipGroup.getChildAt(i + 1) as? Chip
-            chip?.isChecked = selectedPlatforms.contains(platform)
+    private fun setPlatformEnabled(platform: Platform, enabled: Boolean) {
+        if (enabled) {
+            selectedPlatforms.add(platform)
+        } else {
+            selectedPlatforms.remove(platform)
+        }
+        PlatformPreferences.setPlatformEnabled(this, platform, enabled)
+        syncChipsAndSwitches()
+        rescheduleNotifications()
+        applyFilters()
+    }
+
+    private fun setAllPlatformsEnabled(enabled: Boolean) {
+        if (enabled) {
+            selectedPlatforms.addAll(Platform.entries)
+        } else {
+            selectedPlatforms.clear()
+        }
+        PlatformPreferences.setAllPlatforms(this, enabled)
+        syncChipsAndSwitches()
+        rescheduleNotifications()
+        applyFilters()
+    }
+
+    private fun rescheduleNotifications() {
+        val areNotificationsEnabled = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+            .getBoolean("enable_notifications", true)
+        if (!areNotificationsEnabled) return
+
+        val scheduler = NotificationScheduler(this)
+        val contests = viewModel.contests.value?.takeIf { it.isNotEmpty() } ?: scheduler.getCachedContests()
+        if (contests.isNotEmpty()) {
+            scheduler.scheduleAll(contests)
         }
     }
 
@@ -115,6 +154,7 @@ class MainActivity : AppCompatActivity() {
             setupScheduleUI()
             setupRemindersUI()
             setupSettingsUI()
+            syncChipsAndSwitches()
             bindViewModel()
             
             val currentNightMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
@@ -383,6 +423,8 @@ class MainActivity : AppCompatActivity() {
         remindersLayout.isVisible = target == remindersLayout
         settingsLayout.isVisible = target == settingsLayout
         
+        syncChipsAndSwitches()
+
         if (target == homeLayout) {
             liveAdapter?.startCountdown()
             upcomingAdapter?.startCountdown()
@@ -411,13 +453,15 @@ class MainActivity : AppCompatActivity() {
 
         platformChipGroup = findViewById(R.id.platformChipGroup)
         platformChipGroup.removeAllViews()
+        platformChips.clear()
+
         val strokeWidthPx  = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
         val cornerRadiusPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, resources.displayMetrics)
 
-        val allChip = Chip(this).apply {
+        allChip = Chip(this).apply {
             text = "All"
             isCheckable = true
-            isChecked = selectedPlatforms.size == Platform.entries.size
+            isChecked = PlatformPreferences.areAllPlatformsSelected(selectedPlatforms)
             chipBackgroundColor = chipBg
             setTextColor(chipText)
             chipStrokeColor = chipStroke
@@ -426,18 +470,8 @@ class MainActivity : AppCompatActivity() {
                 .setAllCornerSizes(cornerRadiusPx)
                 .build()
             setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    selectedPlatforms.addAll(Platform.entries)
-                    for (i in 1 until platformChipGroup.childCount) {
-                        (platformChipGroup.getChildAt(i) as Chip).isChecked = true
-                    }
-                } else if (selectedPlatforms.size == Platform.entries.size) {
-                    selectedPlatforms.clear()
-                    for (i in 1 until platformChipGroup.childCount) {
-                        (platformChipGroup.getChildAt(i) as Chip).isChecked = false
-                    }
-                }
-                applyFilters()
+                if (isSyncingPlatforms) return@setOnCheckedChangeListener
+                setAllPlatformsEnabled(isChecked)
             }
         }
         platformChipGroup.addView(allChip)
@@ -460,11 +494,11 @@ class MainActivity : AppCompatActivity() {
                     .build()
                 
                 setOnCheckedChangeListener { _, isChecked ->
-                    if (isChecked) selectedPlatforms.add(platform) else selectedPlatforms.remove(platform)
-                    (platformChipGroup.getChildAt(0) as? Chip)?.isChecked = selectedPlatforms.size == Platform.entries.size
-                    applyFilters()
+                    if (isSyncingPlatforms) return@setOnCheckedChangeListener
+                    setPlatformEnabled(platform, isChecked)
                 }
             }
+            platformChips[platform] = chip
             platformChipGroup.addView(chip)
         }
     }
@@ -473,15 +507,18 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
         val saveBtn: MaterialButton = settingsLayout.findViewById(R.id.saveSettingsButton)
         
-        val switches = mapOf(
-            Platform.CODEFORCES to settingsLayout.findViewById<MaterialSwitch>(R.id.switchCodeforces),
-            Platform.LEETCODE to settingsLayout.findViewById<MaterialSwitch>(R.id.switchLeetCode),
-            Platform.CODECHEF to settingsLayout.findViewById<MaterialSwitch>(R.id.switchCodeChef),
-            Platform.ATCODER to settingsLayout.findViewById<MaterialSwitch>(R.id.switchAtCoder)
-        )
-        
-        switches.forEach { (p, sw) ->
-            sw.isChecked = prefs.getBoolean("platform_${p.name}", true)
+        platformSwitches.clear()
+        platformSwitches[Platform.CODEFORCES] = settingsLayout.findViewById(R.id.switchCodeforces)
+        platformSwitches[Platform.LEETCODE]   = settingsLayout.findViewById(R.id.switchLeetCode)
+        platformSwitches[Platform.CODECHEF]   = settingsLayout.findViewById(R.id.switchCodeChef)
+        platformSwitches[Platform.ATCODER]    = settingsLayout.findViewById(R.id.switchAtCoder)
+
+        platformSwitches.forEach { (platform, switchView) ->
+            switchView.isChecked = selectedPlatforms.contains(platform)
+            switchView.setOnCheckedChangeListener { _, isChecked ->
+                if (isSyncingPlatforms) return@setOnCheckedChangeListener
+                setPlatformEnabled(platform, isChecked)
+            }
         }
 
         val notificationSwitch = settingsLayout.findViewById<MaterialSwitch>(R.id.switchEnableNotifications)
@@ -526,17 +563,17 @@ class MainActivity : AppCompatActivity() {
             val edit = prefs.edit()
             edit.putBoolean("enable_notifications", enableNotifications)
             edit.putString("app_theme", selectedTheme)
-            switches.forEach { (p, sw) ->
-                edit.putBoolean("platform_${p.name}", sw.isChecked)
+            platformSwitches.forEach { (p, sw) ->
+                edit.putBoolean(PlatformPreferences.key(p), sw.isChecked)
             }
             edit.apply()
 
             // Update selectedPlatforms and synchronize Home chips with new settings
             selectedPlatforms.clear()
-            switches.forEach { (p, sw) ->
+            platformSwitches.forEach { (p, sw) ->
                 if (sw.isChecked) selectedPlatforms.add(p)
             }
-            syncHomeChips()
+            syncChipsAndSwitches()
             
             val scheduler = NotificationScheduler(this)
             if (!enableNotifications) {
