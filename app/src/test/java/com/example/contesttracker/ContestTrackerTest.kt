@@ -129,6 +129,72 @@ class ContestTrackerTest {
         }
     }
 
+    @Test
+    fun testHomeFilterAndSettingsSubscriptionConnection() {
+        val fakePrefs = FakeSharedPreferences()
+
+        // Create sample contests across all 4 platforms
+        val codeforcesContest = ContestModel(
+            id = 1L, name = "CF Round", resourceId = 1,
+            start = "2026-10-29T10:00:00Z", end = "2026-10-29T12:00:00Z",
+            durationSeconds = 7200L, url = "https://codeforces.com"
+        )
+        val leetcodeContest = ContestModel(
+            id = 2L, name = "LC Weekly", resourceId = 102,
+            start = "2026-10-29T10:00:00Z", end = "2026-10-29T11:30:00Z",
+            durationSeconds = 5400L, url = "https://leetcode.com"
+        )
+        val codechefContest = ContestModel(
+            id = 3L, name = "CC Starters", resourceId = 2,
+            start = "2026-10-29T14:00:00Z", end = "2026-10-29T16:00:00Z",
+            durationSeconds = 7200L, url = "https://codechef.com"
+        )
+        val atcoderContest = ContestModel(
+            id = 4L, name = "ABC Contest", resourceId = 93,
+            start = "2026-10-29T12:00:00Z", end = "2026-10-29T13:40:00Z",
+            durationSeconds = 6000L, url = "https://atcoder.jp"
+        )
+
+        val allContests = listOf(codeforcesContest, leetcodeContest, codechefContest, atcoderContest)
+
+        // 1. Initial state: All platforms selected in settings
+        var selected = PlatformPreferences.getSelectedPlatforms(fakePrefs)
+        var filtered = allContests.filter { it.platform?.let { p -> p in selected } == true }
+        assertEquals(4, filtered.size)
+
+        // 2. User deselects Codeforces (via Home chip or Settings switch)
+        PlatformPreferences.setPlatformEnabled(fakePrefs, Platform.CODEFORCES, false)
+        selected = PlatformPreferences.getSelectedPlatforms(fakePrefs)
+        filtered = allContests.filter { it.platform?.let { p -> p in selected } == true }
+        assertEquals(3, filtered.size)
+        assertFalse(filtered.contains(codeforcesContest))
+        assertTrue(filtered.contains(leetcodeContest))
+        assertTrue(filtered.contains(codechefContest))
+        assertTrue(filtered.contains(atcoderContest))
+
+        // 3. User deselects LeetCode
+        PlatformPreferences.setPlatformEnabled(fakePrefs, Platform.LEETCODE, false)
+        selected = PlatformPreferences.getSelectedPlatforms(fakePrefs)
+        filtered = allContests.filter { it.platform?.let { p -> p in selected } == true }
+        assertEquals(2, filtered.size)
+        assertFalse(filtered.contains(codeforcesContest))
+        assertFalse(filtered.contains(leetcodeContest))
+        assertTrue(filtered.contains(codechefContest))
+        assertTrue(filtered.contains(atcoderContest))
+
+        // 4. User deselects All
+        PlatformPreferences.setAllPlatforms(fakePrefs, false)
+        selected = PlatformPreferences.getSelectedPlatforms(fakePrefs)
+        filtered = allContests.filter { it.platform?.let { p -> p in selected } == true }
+        assertTrue(filtered.isEmpty())
+
+        // 5. User selects All
+        PlatformPreferences.setAllPlatforms(fakePrefs, true)
+        selected = PlatformPreferences.getSelectedPlatforms(fakePrefs)
+        filtered = allContests.filter { it.platform?.let { p -> p in selected } == true }
+        assertEquals(4, filtered.size)
+    }
+
     private class FakeSharedPreferences : SharedPreferences {
         val map = mutableMapOf<String, Any?>()
 
